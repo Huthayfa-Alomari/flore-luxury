@@ -2,8 +2,29 @@
 
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
+import { motion } from 'framer-motion' // <--- تم إضافة الاستيراد المفقود لحل الخطأ فوراً
 import { Button } from '@/components/ui/Button'
 import { useARSupport } from '@/hooks/useAR'
+
+// لإعلام الـ TypeScript بوجود عناصر مخصصة مثل model-viewer وتفادي مشاكل الـ Types أثناء الـ Build
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        src: string;
+        poster?: string;
+        alt?: string;
+        'camera-controls'?: boolean;
+        'auto-rotate'?: boolean;
+        ar?: boolean;
+        'ar-modes'?: string;
+        'touch-action'?: string;
+        'shadow-intensity'?: string;
+        exposure?: string;
+      }, HTMLElement>;
+    }
+  }
+}
 
 interface ARFlowerViewerProps {
   modelUrl: string | null
@@ -16,8 +37,16 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
   const { isSupported, isMobile } = useARSupport()
 
   useEffect(() => {
-    // Dynamically import model-viewer to avoid SSR issues
-    import('@google/model-viewer')
+    // التحقق من أن الكود يعمل في المتصفح، وأن العنصر لم يتم تسجيله مسبقاً
+    if (typeof window !== 'undefined' && !customElements.get('model-viewer')) {
+      import('@google/model-viewer')
+        .then(() => {
+          console.log('Model Viewer registered successfully')
+        })
+        .catch((error) => {
+          console.error('Error loading model-viewer:', error)
+        })
+    }
   }, [])
 
   if (!modelUrl) {
@@ -53,7 +82,6 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
         </div>
 
         <div className="relative aspect-square bg-flore-bg">
-          {/* @ts-ignore */}
           <model-viewer
             ref={viewerRef}
             src={modelUrl}
@@ -92,7 +120,7 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
 
         <div className="p-4 text-center">
           <p className="text-sm text-flore-text-secondary">
-            {isMobile 
+            {isMobile
               ? 'اضغط على "عرض في مساحتك" لتجربة المنتج في منزلك'
               : 'استخدم هاتفك المحمول لتجربة الواقع المعزز'
             }

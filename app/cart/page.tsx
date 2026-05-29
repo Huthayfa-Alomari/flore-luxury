@@ -1,257 +1,268 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import Image from 'next/image'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, MessageCircle, CreditCard, Banknote } from 'lucide-react'
-import { useCartStore } from '@/lib/store/cart-store'
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, MapPin, Phone, User, MessageSquare, CreditCard, Banknote, MessageCircle } from 'lucide-react'
+import { useCart } from '@/lib/store/cart-store'
 import { Button } from '@/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import { generateWhatsAppMessage } from '@/lib/utils'
+import { formatPrice, generateWhatsAppMessage } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, total, clearCart } = useCartStore()
-  const [checkoutMethod, setCheckoutMethod] = useState<'whatsapp' | 'cliq' | 'cash'>('whatsapp')
-  const [isCheckingOut, setIsCheckingOut] = useState(false)
-  const deliveryFee = 3
-  const grandTotal = total + deliveryFee
+  const router = useRouter()
+  const { items, removeItem, updateQuantity, getTotal, clearCart } = useCart()
+  const [mounted, setMounted] = useState(false)
+  const [showCheckout, setShowCheckout] = useState(false) // الانتقال إلى الدفع في نفس الصفحة
+  const [loading, setLoading] = useState(false)
 
-  const handleWhatsAppCheckout = () => {
-    const message = generateWhatsAppMessage(items, grandTotal)
-    window.open(`https://wa.me/9627XXXXXXXX?text=${encodeURIComponent(message)}`, '_blank')
-  }
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    region: 'amman',
+    payment: 'whatsapp',
+    giftMessage: '',
+    notes: '',
+  })
 
-  const handleCliqCheckout = async () => {
-    setIsCheckingOut(true)
-    try {
-      const response = await fetch('/api/payment/cliq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: grandTotal,
-          items: items.map(i => ({ name: i.product.name, price: i.product.price, qty: i.quantity })),
-        }),
-      })
-      const data = await response.json()
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl
-      }
-    } catch (error) {
-      console.error('Payment error:', error)
-    }
-    setIsCheckingOut(false)
-  }
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
-  const handleCashCheckout = async () => {
-    setIsCheckingOut(true)
-    // Create order in Supabase
-    setIsCheckingOut(false)
-  }
-
-  if (items.length === 0) {
+  if (!mounted) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <div className="bg-flore-subtle rounded-full h-24 w-24 mx-auto mb-6 flex items-center justify-center">
-          <ShoppingBag className="h-10 w-10 text-flore-text-secondary" />
-        </div>
-        <h1 className="font-amiri text-3xl font-bold text-flore-text-primary mb-4">
-          سلة التسوق فارغة
-        </h1>
-        <p className="text-flore-text-secondary mb-8">
-          اكتشف مجموعتنا الفاخرة واختر ما يناسبك
-        </p>
-        <Link href="/catalog">
-          <Button size="lg">تصفح المجموعة</Button>
-        </Link>
+      <div className="min-h-screen bg-flore-bg flex items-center justify-center">
+        <div className="animate-pulse font-amiri text-xl text-flore-primary">جاري تحميل السلة الفاخرة...</div>
       </div>
     )
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="font-amiri text-3xl md:text-4xl font-bold text-flore-text-primary mb-8">
-        سلة التسوق
-      </h1>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          <AnimatePresence mode="popLayout">
-            {items.map((item) => (
-              <motion.div
-                key={item.product.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Card className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="relative h-24 w-24 rounded-xl overflow-hidden flex-shrink-0">
-                        <Image
-                          src={item.product.image}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-noto font-medium text-flore-text-primary truncate">
-                          {item.product.name}
-                        </h3>
-                        <p className="text-flore-text-secondary text-sm mt-1">
-                          {item.product.price} د.أ / وحدة
-                        </p>
-
-                        {item.customization && (
-                          <div className="mt-2 text-xs text-flore-text-secondary bg-flore-subtle rounded-lg p-2">
-                            <p>تخصيص: {item.customization.flowers.join(', ')}</p>
-                            <p>التغليف: {item.customization.wrap}</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center border border-flore-border rounded-lg">
-                            <button
-                              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                              className="h-8 w-8 flex items-center justify-center hover:bg-flore-subtle transition-colors"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="h-8 w-10 flex items-center justify-center text-sm font-medium">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                              className="h-8 w-8 flex items-center justify-center hover:bg-flore-subtle transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                          <span className="font-amiri font-bold text-flore-primary">
-                            {item.product.price * item.quantity} د.أ
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeItem(item.product.id)}
-                        className="text-flore-error hover:bg-red-50 p-2 rounded-lg transition-colors self-start"
-                        aria-label="إزالة"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          <Button variant="ghost" onClick={clearCart} className="text-flore-error gap-2">
-            <Trash2 className="h-4 w-4" />
-            إفراغ السلة
-          </Button>
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-flore-bg px-4">
+        <div className="text-center">
+          <ShoppingBag className="h-20 w-20 mx-auto text-flore-primary/30 mb-6" />
+          <h1 className="font-amiri text-3xl font-bold text-flore-text-primary mb-4">السلة فارغة</h1>
+          <p className="text-flore-text-secondary mb-8">اكتشف مجموعتنا الفاخرة واختر ما يناسبك</p>
+          <Link href="/catalog">
+            <Button size="lg" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              تسوق الآن
+            </Button>
+          </Link>
         </div>
+      </div>
+    )
+  }
 
-        {/* Summary */}
-        <div className="lg:sticky lg:top-24 h-fit">
-          <Card>
-            <CardHeader>
-              <CardTitle>ملخص الطلب</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-flore-text-secondary">المجموع الفرعي</span>
-                <span className="font-medium">{total} د.أ</span>
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const total = getTotal()
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert({
+          items: items.map(item => ({
+            product_id: item.product.id,
+            name: item.product.name,
+            price: item.product.price,
+            qty: item.quantity,
+            image: item.product.image,
+            customization: item.customization,
+          })),
+          total,
+          payment_method: form.payment,
+          delivery_address: form.address,
+          delivery_region: form.region,
+          customer_phone: form.phone,
+          customer_name: form.name,
+          gift_message: form.giftMessage || null,
+          notes: form.notes || null,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (form.payment === 'whatsapp') {
+        const message = generateWhatsAppMessage(items, total)
+        const whatsappUrl = `https://wa.me/962790000000?text=${encodeURIComponent(message)}`
+        window.open(whatsappUrl, '_blank')
+      } else if (form.payment === 'cliq') {
+        alert('سيتم إرسال رابط CliQ للدفع على واتساب')
+      }
+
+      clearCart()
+      router.push(`/profile?order=${data.id}`)
+    } catch (err) {
+      console.error(err)
+      alert('حدث خطأ، يرجى المحاولة مرة أخرى')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const paymentMethods = [
+    { id: 'whatsapp', label: 'واتساب', icon: MessageCircle, desc: 'تواصل مباشر للتأكيد' },
+    { id: 'cliq', label: 'CliQ', icon: CreditCard, desc: 'تحويل بنكي فوري' },
+    { id: 'cash', label: 'كاش', icon: Banknote, desc: 'الدفع عند الاستلام' },
+  ]
+
+  return (
+    <div className="min-h-screen bg-flore-bg pb-24">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <AnimatePresence mode="wait">
+          {!showCheckout ? (
+            // المرحلة الأولى: عرض منتجات السلة
+            <motion.div
+              key="cart-stage"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <h1 className="font-amiri text-4xl font-bold text-flore-text-primary mb-8 text-center">
+                سلة المشتريات ({items.length})
+              </h1>
+
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <div key={item.product.id} className="bg-flore-card rounded-2xl p-4 shadow-luxury flex gap-4">
+                    <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+                      <Image src={item.product.image} alt={item.product.name} fill className="object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-amiri text-lg font-bold text-flore-text-primary">{item.product.name}</h3>
+                          <p className="text-flore-text-secondary text-sm">{formatPrice(item.product.price)} / وحدة</p>
+                        </div>
+                        <button onClick={() => removeItem(item.product.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2 bg-flore-subtle rounded-xl">
+                          <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-2 hover:bg-flore-gold/20 rounded-xl transition-colors">
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-8 text-center font-bold">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-2 hover:bg-flore-gold/20 rounded-xl transition-colors">
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="font-amiri text-xl font-bold text-flore-primary">{formatPrice(item.product.price * item.quantity)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-flore-text-secondary">رسوم التوصيل</span>
-                <span className="font-medium">{deliveryFee} د.أ</span>
-              </div>
-              <div className="border-t border-flore-border pt-4">
-                <div className="flex justify-between">
-                  <span className="font-noto font-bold">الإجمالي</span>
-                  <span className="font-amiri text-2xl font-bold text-flore-primary">
-                    {grandTotal} د.أ
-                  </span>
+
+              <div className="mt-8 bg-flore-card rounded-3xl p-6 shadow-luxury">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-flore-text-secondary">المجموع</span>
+                  <span className="font-amiri text-2xl font-bold text-flore-primary">{formatPrice(getTotal())}</span>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={clearCart} className="flex-1 py-3 rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors font-medium">
+                    إفراغ السلة
+                  </button>
+                  <Button size="lg" className="flex-[2] gap-2" onClick={() => setShowCheckout(true)}>
+                    إتمـام الطلب
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
+            </motion.div>
+          ) : (
+            // المرحلة الثانية: عرض فورم الـ Checkout مباشرة هنا لمنع الـ 404
+            <motion.div
+              key="checkout-stage"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              <button onClick={() => setShowCheckout(false)} className="flex items-center gap-2 text-flore-primary mb-6 hover:underline font-medium">
+                <ArrowLeft className="h-4 w-4 rotate-180" /> العودة للسلة
+              </button>
 
-              {/* Checkout Methods */}
-              <div className="space-y-3 pt-4">
-                <p className="font-noto font-medium text-sm">طريقة الدفع:</p>
+              <h1 className="font-amiri text-4xl font-bold text-flore-text-primary mb-8 text-center">إتمام الطلب</h1>
 
-                <button
-                  onClick={() => setCheckoutMethod('whatsapp')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${
-                    checkoutMethod === 'whatsapp'
-                      ? 'border-flore-primary bg-flore-primary/5'
-                      : 'border-flore-border'
-                  }`}
-                >
-                  <MessageCircle className="h-5 w-5 text-green-600" />
-                  <div className="text-right">
-                    <p className="font-medium text-sm">واتساب</p>
-                    <p className="text-xs text-flore-text-secondary">تواصل مباشر للتأكيد</p>
+              <form onSubmit={handleCheckoutSubmit} className="space-y-6">
+                <section className="bg-flore-card rounded-3xl p-6 shadow-luxury">
+                  <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2">
+                    <User className="h-5 w-5 text-flore-primary" /> معلومات التواصل
+                  </h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-flore-text-secondary mb-1">الاسم الكامل</label>
+                      <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none" placeholder="محمد أحمد" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-flore-text-secondary mb-1">رقم الهاتف</label>
+                      <input required type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none" placeholder="0790000000" dir="ltr" />
+                    </div>
                   </div>
-                </button>
+                </section>
 
-                <button
-                  onClick={() => setCheckoutMethod('cliq')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${
-                    checkoutMethod === 'cliq'
-                      ? 'border-flore-primary bg-flore-primary/5'
-                      : 'border-flore-border'
-                  }`}
-                >
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                  <div className="text-right">
-                    <p className="font-medium text-sm">CliQ</p>
-                    <p className="text-xs text-flore-text-secondary">دفع إلكتروني آمن</p>
+                <section className="bg-flore-card rounded-3xl p-6 shadow-luxury">
+                  <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-flore-primary" /> عنوان التوصيل
+                  </h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-flore-text-secondary mb-1">المنطقة</label>
+                      <select value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none">
+                        <option value="amman">عمّان</option>
+                        <option value="zarqa">الزرقاء</option>
+                        <option value="irbid">إربد</option>
+                        <option value="other">أخرى</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-flore-text-secondary mb-1">العنوان التفصيلي</label>
+                      <textarea required value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none resize-none" rows={2} placeholder="المنطقة، الشارع، رقم البناء، الطابق" />
+                    </div>
                   </div>
-                </button>
+                </section>
 
-                <button
-                  onClick={() => setCheckoutMethod('cash')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${
-                    checkoutMethod === 'cash'
-                      ? 'border-flore-primary bg-flore-primary/5'
-                      : 'border-flore-border'
-                  }`}
-                >
-                  <Banknote className="h-5 w-5 text-amber-600" />
-                  <div className="text-right">
-                    <p className="font-medium text-sm">نقداً عند الاستلام</p>
-                    <p className="text-xs text-flore-text-secondary">الدفع عند التوصيل</p>
+                <section className="bg-flore-card rounded-3xl p-6 shadow-luxury">
+                  <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-flore-primary" /> طريقة الدفع
+                  </h2>
+                  <div className="grid grid-cols-3 gap-3">
+                    {paymentMethods.map((method) => {
+                      const Icon = method.icon
+                      return (
+                        <button key={method.id} type="button" onClick={() => setForm({ ...form, payment: method.id })} className={`rounded-xl p-4 text-center border-2 transition-colors ${form.payment === method.id ? 'border-flore-primary bg-flore-subtle' : 'border-flore-border'}`}>
+                          <Icon className="h-6 w-6 mx-auto mb-2 text-flore-primary" />
+                          <p className="font-medium text-sm">{method.label}</p>
+                          <p className="text-xs text-flore-text-secondary mt-1">{method.desc}</p>
+                        </button>
+                      )
+                    })}
                   </div>
-                </button>
-              </div>
+                </section>
 
-              <Button
-                size="lg"
-                className="w-full mt-4"
-                onClick={() => {
-                  if (checkoutMethod === 'whatsapp') handleWhatsAppCheckout()
-                  else if (checkoutMethod === 'cliq') handleCliqCheckout()
-                  else handleCashCheckout()
-                }}
-                disabled={isCheckingOut}
-              >
-                {isCheckingOut ? 'جاري المعالجة...' : 'إتمام الطلب'}
-              </Button>
-
-              <Link href="/catalog" className="block text-center">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  مواصلة التسوق
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+                <motion.div className="bg-flore-primary text-white rounded-3xl p-6 shadow-luxury">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-white/80">الإجمالي النهائي</span>
+                    <span className="font-amiri text-3xl font-bold">{formatPrice(getTotal())}</span>
+                  </div>
+                  <Button type="submit" disabled={loading} size="lg" className="w-full bg-white text-flore-primary hover:bg-flore-gold">
+                    {loading ? 'جاري إرسال الطلب...' : 'تأكيد الطلب عبر واتساب'}
+                  </Button>
+                </motion.div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

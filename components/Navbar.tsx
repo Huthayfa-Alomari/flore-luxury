@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Flower2, Search, ShoppingBag, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useCartStore } from '@/lib/store/cart-store'
+import { useCart } from '@/lib/store/cart-store'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/Button'
 
@@ -20,9 +20,17 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [mounted, setMounted] = useState(false) // حالة المراقبة لحل مشكلة الـ Hydration
   const pathname = usePathname()
   const { user } = useAuth()
-  const itemCount = useCartStore((state) => state.getItemCount())
+
+  // استدعاء الـ count من الـ store المحدث
+  const itemCount = useCart((state) => state.getCount())
+
+  // تفعيل الحالة فور اكتمال تحميل الصفحة على المتصفح (Client)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <>
@@ -48,11 +56,10 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`font-noto text-sm font-medium transition-colors hover:text-flore-primary ${
-                    pathname === link.href
+                  className={`font-noto text-sm font-medium transition-colors hover:text-flore-primary ${pathname === link.href
                       ? 'text-flore-primary'
                       : 'text-flore-text-secondary'
-                  }`}
+                    }`}
                 >
                   {link.label}
                 </Link>
@@ -88,17 +95,17 @@ export function Navbar() {
                 <Search className="h-5 w-5" />
               </Button>
 
-              {/* Cart */}
-              <Link href="/cart">
-                <Button variant="ghost" size="icon" className="relative" aria-label="سلة التسوق">
+              {/* Cart - تم تصحيح البنية هنا وتضمين mounted لحماية الـ Hydration */}
+              <Button variant="ghost" size="icon" className="relative" aria-label="سلة التسوق" asChild>
+                <Link href="/cart">
                   <ShoppingBag className="h-5 w-5" />
-                  {itemCount > 0 && (
+                  {mounted && itemCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-flore-primary text-white text-xs flex items-center justify-center">
                       {itemCount}
                     </span>
                   )}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
 
               {/* User */}
               <Link href={user ? '/profile' : '/login'}>
