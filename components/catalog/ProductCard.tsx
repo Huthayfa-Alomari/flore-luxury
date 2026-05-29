@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ShoppingBag, Eye } from 'lucide-react'
 import type { Product } from '@/types'
-import { useCartStore } from '@/lib/store/cart-store'
+// التعديل 1: استيراد useCart بدلاً من useCartStore
+import { useCart } from '@/lib/store/cart-store'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 
@@ -14,7 +15,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const addItem = useCartStore((state) => state.addItem)
+  // التعديل 2: استخدام الـ Hook المصحح useCart
+  const addItem = useCart((state) => state.addItem)
 
   return (
     <motion.div
@@ -67,7 +69,8 @@ export function ProductCard({ product }: ProductCardProps) {
             <Button
               variant="default"
               className="flex-1 gap-2"
-              onClick={() => addItem(product)}
+              // التعديل 3: تمرير الكائن بالصيغة الصحيحة المتوافقة مع الـ CartItem Interface
+              onClick={() => addItem({ product, quantity: 1 })}
             >
               <ShoppingBag className="h-4 w-4" />
               أضف للسلة

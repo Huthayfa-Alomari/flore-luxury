@@ -1,97 +1,197 @@
-import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import { ShoppingBag, Users, TrendingUp, Package } from 'lucide-react'
+"use client"
 
-export default async function AdminDashboard() {
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Package, Users, DollarSign, TrendingUp, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/Button'
+import { formatPrice, formatDate, orderStatuses } from '@/lib/utils'
+import type { Order } from '@/types'
+
+export default function AdminDashboard() {
+  const [orders, setOrders] = useState<Order[]>([])
+  const [stats, setStats] = useState({ total: 0, revenue: 0, customers: 0, pending: 0 })
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
   const supabase = createClient()
 
-  // Fetch stats
-  const { count: ordersCount } = await supabase
-    .from('orders')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+  useEffect(() => {
+    fetchOrders()
+    fetchStats()
+  }, [])
 
-  const { count: totalOrders } = await supabase
-    .from('orders')
-    .select('*', { count: 'exact', head: true })
+  const fetchOrders = async () => {
+    const { data } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setOrders(data as Order[])
+    setLoading(false)
+  }
 
-  const { count: productsCount } = await supabase
-    .from('products')
-    .select('*', { count: 'exact', head: true })
+  const fetchStats = async () => {
+    const { data: ordersData } = await supabase.from('orders').select('total, status')
+    const { data: usersData } = await supabase.from('profiles').select('id', { count: 'exact' })
 
-  const { data: revenue } = await supabase
-    .from('orders')
-    .select('total')
-    .eq('payment_status', 'paid')
+    if (ordersData) {
+      const revenue = ordersData.reduce((s, o) => s + (o.total || 0), 0)
+      const pending = ordersData.filter(o => o.status === 'received').length
+      setStats({
+        total: ordersData.length,
+        revenue,
+        customers: usersData?.length || 0,
+        pending,
+      })
+    }
+  }
 
-  const totalRevenue = revenue?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
+  const updateStatus = async (orderId: string, status: string) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId)
 
-  const stats = [
-    {
-      title: 'طلبات اليوم',
-      value: ordersCount || 0,
-      icon: ShoppingBag,
-      color: 'bg-blue-50 text-blue-600',
-    },
-    {
-      title: 'إجمالي الطلبات',
-      value: totalOrders || 0,
-      icon: Package,
-      color: 'bg-purple-50 text-purple-600',
-    },
-    {
-      title: 'المنتجات',
-      value: productsCount || 0,
-      icon: TrendingUp,
-      color: 'bg-green-50 text-green-600',
-    },
-    {
-      title: 'الإيرادات',
-      value: `${totalRevenue.toFixed(0)} د.أ`,
-      icon: Users,
-      color: 'bg-amber-50 text-amber-600',
-    },
+    if (!error) {
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o))
+    }
+  }
+
+  const filteredOrders = filter === 'all'
+    ? orders
+    : orders.filter(o => o.status === filter)
+
+  const statCards = [
+    { label: 'إجمالي الطلبات', value: stats.total, icon: Package, color: 'bg-blue-100 text-blue-600' },
+    { label: 'الإيرادات', value: formatPrice(stats.revenue), icon: DollarSign, color: 'bg-green-100 text-green-600' },
+    { label: 'العملاء', value: stats.customers, icon: Users, color: 'bg-purple-100 text-purple-600' },
+    { label: 'معلّقة', value: stats.pending, icon: TrendingUp, color: 'bg-orange-100 text-orange-600' },
   ]
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flore-primary" />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-amiri text-3xl font-bold text-flore-text-primary">لوحة التحكم</h1>
-        <p className="text-flore-text-secondary mt-1">نظرة عامة على أداء المتجر</p>
-      </div>
+    <div className="min-h-screen bg-flore-bg p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="font-amiri text-4xl font-bold text-flore-text-primary mb-8">
+          لوحة التحكم
+        </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <Card key={stat.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-flore-text-secondary mb-1">{stat.title}</p>
-                    <p className="text-2xl font-bold text-flore-text-primary">{stat.value}</p>
-                  </div>
-                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${stat.color}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {statCards.map((stat, i) => {
+            const Icon = stat.icon
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-flore-card rounded-2xl p-6 shadow-luxury"
+              >
+                <div className={`w-12 h-12 rounded-xl ${stat.color} flex items-center justify-center mb-4`}>
+                  <Icon className="h-6 w-6" />
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                <p className="text-2xl font-bold text-flore-text-primary">{stat.value}</p>
+                <p className="text-sm text-flore-text-secondary">{stat.label}</p>
+              </motion.div>
+            )
+          })}
+        </div>
 
-      {/* Recent Orders Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-amiri text-xl">آخر الطلبات</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-flore-text-secondary text-center py-8">
-            اذهب إلى صفحة الطلبات لعرض التفاصيل الكاملة
-          </p>
-        </CardContent>
-      </Card>
+        {/* Filters */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {['all', 'received', 'arranging', 'en_route', 'delivered'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${filter === status
+                  ? 'bg-flore-primary text-white'
+                  : 'bg-flore-card text-flore-text-secondary hover:bg-flore-subtle'
+                }`}
+            >
+              {status === 'all' ? 'الكل' : orderStatuses.find(s => s.value === status)?.label || status}
+            </button>
+          ))}
+        </div>
+
+        {/* Orders Table */}
+        <div className="bg-flore-card rounded-3xl shadow-luxury overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right">
+              <thead className="bg-flore-subtle/50">
+                <tr>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">الطلب</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">العميل</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">المبلغ</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">الحالة</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">التاريخ</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const statusInfo = orderStatuses.find(s => s.value === order.status)
+                  return (
+                    <tr key={order.id} className="border-t border-flore-border hover:bg-flore-subtle/30">
+                      <td className="p-4">
+                        <p className="font-medium">#{order.id.slice(0, 8)}</p>
+                        <p className="text-xs text-flore-text-secondary">{order.items.length} منتج</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="font-medium">{order.customer_name || '—'}</p>
+                        <p className="text-xs text-flore-text-secondary">{order.customer_phone}</p>
+                      </td>
+                      <td className="p-4 font-bold text-flore-primary">
+                        {formatPrice(order.total)}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusInfo?.color || ''}`}>
+                          {statusInfo?.label || order.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-flore-text-secondary">
+                        {formatDate(order.created_at)}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStatus(order.id, 'delivered')}
+                            className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200"
+                            title="تم التسليم"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(order.id, 'cancelled')}
+                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                            title="إلغاء"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                          <button className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200" title="عرض">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {filteredOrders.length === 0 && (
+            <div className="p-12 text-center text-flore-text-secondary">
+              لا توجد طلبات في هذا الفلتر
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
