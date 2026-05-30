@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Search, SlidersHorizontal } from 'lucide-react'
@@ -13,7 +13,8 @@ import type { Product } from '@/types'
 
 type SortOption = 'newest' | 'price_asc' | 'price_desc'
 
-export default function CatalogPage() {
+// 1. فصل منطق الكتالوج بمكون داخلي يقرأ الرابط بأمان
+function CatalogContent() {
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') || 'all'
 
@@ -52,12 +53,10 @@ export default function CatalogPage() {
   const filterAndSort = useCallback(() => {
     let result = [...products]
 
-    // Category filter
     if (activeCategory !== 'all') {
       result = result.filter((p) => p.category === activeCategory)
     }
 
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
@@ -67,7 +66,6 @@ export default function CatalogPage() {
       )
     }
 
-    // Sort
     switch (sortBy) {
       case 'price_asc':
         result.sort((a, b) => a.price - b.price)
@@ -178,5 +176,18 @@ export default function CatalogPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// 2. المكون الرئيسي يقوم بتغليف الكتالوج بـ Suspense لضمان نجاح الـ Build السحابي
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center text-flore-text-secondary">
+        جاري تحميل الكتالوج الفاخر...
+      </div>
+    }>
+      <CatalogContent />
+    </Suspense>
   )
 }
