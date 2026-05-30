@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
-import { motion } from 'framer-motion' // <--- تم إضافة الاستيراد المفقود لحل الخطأ فوراً
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { useARSupport } from '@/hooks/useAR'
 
-// لإعلام الـ TypeScript بوجود عناصر مخصصة مثل model-viewer وتفادي مشاكل الـ Types أثناء الـ Build
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -35,9 +34,11 @@ interface ARFlowerViewerProps {
 export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerProps) {
   const viewerRef = useRef<HTMLElement>(null)
   const { isSupported, isMobile } = useARSupport()
+  const [isMounted, setIsMounted] = useState(false) // حماية إضافية للـ SSR
 
   useEffect(() => {
-    // التحقق من أن الكود يعمل في المتصفح، وأن العنصر لم يتم تسجيله مسبقاً
+    setIsMounted(true)
+
     if (typeof window !== 'undefined' && !customElements.get('model-viewer')) {
       import('@google/model-viewer')
         .then(() => {
@@ -63,6 +64,9 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
       </div>
     )
   }
+
+  // منع رندر الـ Custom Element تماماً على السيرفر لتفادي أي تعليق (Timeout) أثناء الـ Build
+  if (!isMounted) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -96,12 +100,13 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
             exposure="0.8"
             style={{ width: '100%', height: '100%' }}
           >
-            <button
+            {/* تم إزالة الـ button المباشر كـ Slot واستبداله بعنصر div عادي لتفادي مشاكل الـ Event Handlers المتعارضة أثناء معالجة الخصائص */}
+            <div
               slot="ar-button"
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-6 py-3 rounded-xl font-noto text-sm shadow-lg hover:bg-flore-primary-dark transition-colors"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-6 py-3 rounded-xl font-noto text-sm shadow-lg hover:bg-flore-primary-dark transition-colors cursor-pointer"
             >
               عرض في مساحتك
-            </button>
+            </div>
           </model-viewer>
 
           {!isSupported && (
