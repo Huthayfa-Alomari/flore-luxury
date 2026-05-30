@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
-import { useARSupport } from '@/hooks/useAR'
+import { useEffect, useState } from 'react'
+import { X, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
+// تعريف الأنواع لـ TypeScript للتوافق مع خصائص Model Viewer المدعومة
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -20,6 +19,7 @@ declare global {
         'touch-action'?: string;
         'shadow-intensity'?: string;
         exposure?: string;
+        onload?: () => void;
       }, HTMLElement>;
     }
   }
@@ -27,32 +27,46 @@ declare global {
 
 interface ARFlowerViewerProps {
   modelUrl: string | null
-  posterUrl: string
+  posterUrl: string | null
   onClose: () => void
 }
 
 export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerProps) {
-  const viewerRef = useRef<HTMLElement>(null)
-  const { isSupported, isMobile } = useARSupport()
   const [isMounted, setIsMounted] = useState(false)
+  const [isModelLoaded, setIsModelLoaded] = useState(false)
+
+  // fallback للصورة الافتراضية في حال كانت الداتا فارغة منعاً لـ 404
+  const finalPoster = posterUrl || '/images/placeholder-luxury.jpg'
 
   useEffect(() => {
     setIsMounted(true)
+
+    // جلب المكتبة ديناميكياً في بيئة الـ Client فقط
     if (typeof window !== 'undefined' && !customElements.get('model-viewer')) {
       import('@google/model-viewer')
-        .then(() => console.log('Model Viewer registered successfully'))
-        .catch((error) => console.error('Error loading model-viewer:', error))
+        .then(() => console.log('Model Viewer initialized successfully'))
+        .catch((error) => console.error('Failed to load model-viewer:', error))
+    }
+
+    // تنظيف الـ States عند تدمير المكون
+    return () => {
+      setIsModelLoaded(false)
     }
   }, [])
 
   if (!modelUrl) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-flore-card rounded-3xl p-8 max-w-md w-full text-center">
-          <p className="font-noto text-lg text-flore-text-secondary">
-            نموذج ثلاثي الأبعاد غير متوفر لهذا المنتج
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4" dir="rtl">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center border border-flore-border shadow-luxury">
+          <p className="font-noto text-base text-flore-text-secondary">
+            نموذج المعاينة ثلاثي الأبعاد وعناصر الواقع المعزز غير متوفرة لهذا المنتج حالياً.
           </p>
-          <Button onClick={onClose} className="mt-4">إغلاق</Button>
+          <button
+            onClick={onClose}
+            className="mt-5 bg-flore-primary text-white px-6 py-2 rounded-xl font-noto text-xs hover:bg-opacity-95 transition-all"
+          >
+            إغلاق النافذة
+          </button>
         </div>
       </div>
     )
@@ -61,57 +75,74 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
   if (!isMounted) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4" dir="rtl">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-flore-card rounded-3xl overflow-hidden max-w-2xl w-full shadow-2xl"
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white rounded-3xl overflow-hidden max-w-2xl w-full shadow-luxury border border-flore-border"
       >
-        <div className="flex items-center justify-between p-4 border-b border-flore-border">
-          <h3 className="font-amiri text-xl font-bold text-flore-text-primary">معاينة الواقع المعزز</h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+        {/* الهيدر العلوي */}
+        <div className="flex items-center justify-between p-4 border-b border-flore-border bg-white">
+          <h3 className="font-amiri text-lg font-bold text-flore-text-primary flex items-center gap-2">
+            معاينة الأبعاد الحية والواقع المعزز (AR)
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-flore-text-secondary hover:text-flore-primary hover:bg-flore-bg transition-colors"
+          >
             <X className="h-5 w-5" />
-          </Button>
+          </button>
         </div>
 
-        <div className="relative aspect-square bg-flore-bg">
+        {/* مسرح العرض الرئيسي للـ 3D */}
+        <div className="relative aspect-square bg-gradient-to-b from-flore-bg to-white flex items-center justify-center">
+
+          {/* شاشة التحميل الذكية حتى يكتمل الرندر */}
+          <AnimatePresence>
+            {!isModelLoaded && (
+              <motion.div
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-20 bg-white/80 flex flex-col items-center justify-center gap-3"
+              >
+                <Loader2 className="h-8 w-8 text-flore-primary animate-spin" />
+                <p className="text-xs font-noto text-flore-text-secondary animate-pulse">جاري بناء المجسم ثلاثي الأبعاد الفاخر...</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <model-viewer
-            ref={viewerRef}
             src={modelUrl}
-            poster={posterUrl}
-            alt="معاينة المنتج ثلاثية الأبعاد"
+            poster={finalPoster}
+            alt="Floré 3D Luxury Asset Preview"
             camera-controls
             auto-rotate
             ar
             ar-modes="webxr scene-viewer quick-look"
             touch-action="pan-y"
-            shadow-intensity="1"
-            exposure="0.8"
-            style={{ width: '100%', height: '100%' }}
+            shadow-intensity="1.5"
+            exposure="0.9"
+            style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }}
+            // تفعيل الـ Loading State برمجياً عند اكتمال جلب الـ Asset
+            onload={() => setIsModelLoaded(true)}
           >
-            {/* تم تغيير الـ button إلى div عادي بدون أي أحداث تفاعلية داخل الـ Custom Element لحل خطأ الـ Build تماماً */}
-            <div
+            {/* زر تشغيل الـ AR حقيقي، آمن للـ Build ومتوافق مع متصفحات الموبايل الصارمة */}
+            <button
+              type="button"
               slot="ar-button"
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-6 py-3 rounded-xl font-noto text-sm shadow-lg cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-flore-primary text-white font-noto font-bold text-xs px-6 py-3 rounded-xl shadow-lg hover:bg-opacity-95 transition-all z-30"
             >
-              عرض في مساحتك
-            </div>
+              عرض الباقة في مساحتك الحقيقية
+            </button>
           </model-viewer>
-
-          {!isSupported && (
-            <div className="absolute inset-0 bg-flore-bg/90 flex items-center justify-center">
-              <div className="text-center p-6">
-                <p className="font-noto text-lg text-flore-text-primary mb-2">الواقع المعزز غير مدعوم على هذا الجهاز</p>
-                <p className="text-sm text-flore-text-secondary">جرّب من هاتفك المحمول للحصول على أفضل تجربة</p>
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="p-4 text-center">
-          <p className="text-sm text-flore-text-secondary">
-            {isMobile ? 'اضغط على "عرض في مساحتك" لتجربة المنتج في منزلك' : 'استخدم هاتفك المحمول لتجربة الواقع المعزز'}
+        {/* تلميحات تجربة المستخدم التوجيهية */}
+        <div className="p-4 bg-flore-bg/40 border-t border-flore-border text-center">
+          <p className="text-xs font-noto text-flore-text-secondary leading-relaxed">
+            يمكنك تدوير المجسم وتهيئة الزوايا بأصابعك. للتجربة الحية الكاملة، افتح الرابط من متصفح هاتف ذكي (iOS أو Android) لتفعيل كاميرا البيئة الحقيقية.
           </p>
         </div>
       </motion.div>
