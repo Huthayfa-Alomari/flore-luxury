@@ -20,14 +20,13 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [mounted, setMounted] = useState(false) // حالة المراقبة لحل مشكلة الـ Hydration
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const { user } = useAuth()
 
   // استدعاء الـ count من الـ store المحدث
   const itemCount = useCart((state) => state.getCount())
 
-  // تفعيل الحالة فور اكتمال تحميل الصفحة على المتصفح (Client)
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -57,8 +56,8 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={`font-noto text-sm font-medium transition-colors hover:text-flore-primary ${pathname === link.href
-                      ? 'text-flore-primary'
-                      : 'text-flore-text-secondary'
+                    ? 'text-flore-primary'
+                    : 'text-flore-text-secondary'
                     }`}
                 >
                   {link.label}
@@ -95,17 +94,17 @@ export function Navbar() {
                 <Search className="h-5 w-5" />
               </Button>
 
-              {/* Cart - تم تصحيح البنية هنا وتضمين mounted لحماية الـ Hydration */}
-              <Button variant="ghost" size="icon" className="relative" aria-label="سلة التسوق" asChild>
-                <Link href="/cart">
+              {/* Cart - تم إصلاح الهيكلية منعاً لتمرير الـ handlers بشكل متعارض */}
+              <Link href="/cart" className="relative">
+                <Button variant="ghost" size="icon" aria-label="سلة التسوق">
                   <ShoppingBag className="h-5 w-5" />
                   {mounted && itemCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-flore-primary text-white text-xs flex items-center justify-center">
                       {itemCount}
                     </span>
                   )}
-                </Link>
-              </Button>
+                </Button>
+              </Link>
 
               {/* User */}
               <Link href={user ? '/profile' : '/login'}>
@@ -153,14 +152,18 @@ export function Navbar() {
               ))}
               <div className="border-t border-flore-border pt-6 mt-4">
                 {user ? (
-                  <Button variant="outline" className="w-full" onClick={() => setIsOpen(false)}>
-                    <Link href="/profile">حسابي</Link>
-                  </Button>
+                  <Link href="/profile" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      حسابي
+                    </Button>
+                  </Link>
                 ) : (
                   <div className="flex gap-3">
-                    <Button className="flex-1" onClick={() => setIsOpen(false)}>
-                      <Link href="/login">تسجيل الدخول</Link>
-                    </Button>
+                    <Link href="/login" className="flex-1" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full">
+                        تسجيل الدخول
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </div>
