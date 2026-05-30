@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"app\\\\ar\\\\page.tsx -> @google/model-viewer\":{\"id\":\"app\\\\ar\\\\page.tsx -> @google/model-viewer\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_google_model-viewer_lib_model-viewer_js.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"

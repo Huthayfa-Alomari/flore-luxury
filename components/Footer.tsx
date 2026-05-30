@@ -12,7 +12,7 @@ export function Footer() {
               <Flower2 className="h-8 w-8 text-flore-gold" />
               <div>
                 <span className="font-playfair text-xl font-bold">FLORÉ</span>
-                <span className="font-amiri text-sm mr-2 text-flore-gold">فلوري</span>
+                <span className="font-amiri text-sm ms-2 text-flore-gold">فلوري</span>
               </div>
             </div>
             <p className="text-white/70 text-sm leading-relaxed">
@@ -48,7 +48,7 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-white/70 text-sm">
                 <Phone className="h-4 w-4" />
-                <span>+962 7X XXX XXXX</span>
+                <span dir="ltr">+962 788570246</span>
               </li>
               <li className="flex items-center gap-2 text-white/70 text-sm">
                 <MapPin className="h-4 w-4" />
@@ -56,7 +56,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2 text-white/70 text-sm">
                 <Instagram className="h-4 w-4" />
-                <span>@flore.luxury</span>
+                <span dir="ltr">@flore</span>
               </li>
             </ul>
           </div>
@@ -73,7 +73,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-12 pt-8 text-center text-white/50 text-sm">
-          <p>© 2026 FLORÉ Luxury. جميع الحقوق محفوظة.</p>
+          <p>© 2026 FLORÉ. جميع الحقوق محفوظة.</p>
         </div>
       </div>
     </footer>

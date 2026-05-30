@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Flower2, Sparkles, Eye, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -87,11 +86,11 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                 </div>
             </section>
 
-            {/* Marquee */}
+            {/* Marquee - تم إصلاح طريقة الـ Loop لتفادي مشاكل الـ Hydration */}
             <section className="bg-flore-subtle py-6 overflow-hidden">
                 <div className="flex animate-marquee whitespace-nowrap">
-                    {[...Array(4)].map((_, i) => (
-                        <span key={i} className="mx-8 font-playfair text-lg text-flore-primary/60 tracking-widest">
+                    {[1, 2, 3, 4].map((item) => (
+                        <span key={item} className="mx-8 font-playfair text-lg text-flore-primary/60 tracking-widest">
                             LUXURY · فاخر · PREMIUM · أصيل · EXCLUSIVE · فريد · ELEGANT · أنيق ·
                         </span>
                     ))}
@@ -107,11 +106,9 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                     <p className="text-flore-text-secondary">اختارنا لك بعناية</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <Suspense fallback={<div>جاري التحميل...</div>}>
-                        {featuredProducts.map((product) => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                    </Suspense>
+                    {featuredProducts.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                    ))}
                 </div>
             </section>
 
@@ -133,6 +130,7 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                                         src={category.image}
                                         alt={category.label}
                                         fill
+                                        sizes="(max-w-768px) 50vw, 25vw"
                                         className="object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -173,6 +171,7 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                                 src="https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=600&h=600&fit=crop"
                                 alt="AR Preview"
                                 fill
+                                sizes="(max-w-768px) 100vw, 50vw"
                                 className="object-cover"
                             />
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -272,6 +271,7 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                                 src={src}
                                 alt={`Gallery ${i + 1}`}
                                 fill
+                                sizes="(max-w-768px) 50vw, 33vw"
                                 className="object-cover transition-transform duration-500 group-hover:scale-110"
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
