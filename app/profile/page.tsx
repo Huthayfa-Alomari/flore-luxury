@@ -1,5 +1,8 @@
 'use client'
 
+// إجبار Next.js على معالجة الصفحة ديناميكياً عند طلب العميل لتجنب تعليق الـ Build
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -123,11 +126,10 @@ export default function ProfilePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-flore-primary text-white'
-                  : 'bg-flore-card text-flore-text-secondary hover:text-flore-primary'
-              }`}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                ? 'bg-flore-primary text-white'
+                : 'bg-flore-card text-flore-text-secondary hover:text-flore-primary'
+                }`}
             >
               <Icon className="h-4 w-4" />
               {tab.label}

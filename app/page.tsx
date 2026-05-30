@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import HomeContent from '@/components/home/HomeContent'
-
+export const dynamic = 'force-dynamic';
 async function getFeaturedProducts() {
   const supabase = createClient()
   const { data } = await supabase
