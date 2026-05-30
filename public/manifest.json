@@ -1,5 +1,5 @@
 {
-  "name": "FLORÉ Luxury - فلوري",
+  "name": "FLORÉ",
   "short_name": "FLORÉ",
   "description": "بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان",
   "start_url": "/",
@@ -76,28 +76,46 @@
       "label": "تصفح المنتجات"
     }
   ],
-  "categories": ["shopping", "lifestyle"],
+  "categories": [
+    "shopping",
+    "lifestyle"
+  ],
   "shortcuts": [
     {
       "name": "المجموعة",
       "short_name": "تسوق",
       "description": "تصفح مجموعتنا الفاخرة",
       "url": "/catalog",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "الأتيليه",
       "short_name": "صمم",
       "description": "صمم باقتك الخاصة",
       "url": "/atelier",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "السلة",
       "short_name": "سلة",
       "description": "عرض محتويات السلة",
       "url": "/cart",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     }
   ]
 }

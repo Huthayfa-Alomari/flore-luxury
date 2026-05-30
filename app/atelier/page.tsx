@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ShoppingBag, RotateCcw, Sparkles, Layers } from 'lucide-react'
-import { toast } from 'sonner' // أو الـ toast المعتمد في مشروعك (مثل react-hot-toast)
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useCart } from '@/lib/store/cart-store'
 
@@ -15,7 +15,7 @@ interface DBComponent {
   id: string
   name: string
   type: 'base' | 'wrapping' | 'flower' | 'gift'
-  price: number // تم التأكيد عليه كـ number بعد المعالجة
+  price: number
   image_url: string
   model_path: string
 }
@@ -58,7 +58,7 @@ export default function AtelierPage() {
         if (error) throw error
 
         if (data) {
-          // تحويل الأسعار لـ Number مرة واحدة هنا لراحة البال في باقي الكود
+          // تحويل الأسعار لـ Number لراحة البال ومنع أي مشاكل تعارض أنواع بيانات
           const formattedData: DBComponent[] = data.map((item) => ({
             ...item,
             price: Number(item.price) || 0
@@ -83,7 +83,7 @@ export default function AtelierPage() {
     })
   }, [dbComponents, activeTab])
 
-  // حساب السعر الإجمالي لايف (بدون تكرار دالة Number)
+  // حساب السعر الإجمالي لايف 
   const calculateTotal = useMemo(() => {
     let total = 0
     if (selectedBase) total += selectedBase.price
@@ -172,7 +172,6 @@ export default function AtelierPage() {
         updated_at: new Date().toISOString(),
       }
 
-      // إضافة لـ Zustand Store مع الحماية بـ Try/Catch
       await addItem({
         product: customProduct,
         quantity: 1,
@@ -216,7 +215,7 @@ export default function AtelierPage() {
         <div className="p-4 border-b border-flore-border flex justify-between items-center bg-white/50 backdrop-blur-md z-10">
           <div>
             <h1 className="font-amiri text-2xl font-bold text-flore-text-primary flex items-center gap-2">
-              Atelier Floré <Sparkles className="h-5 w-5 text-amber-500" />
+              Floré <Sparkles className="h-5 w-5 text-amber-500" />
             </h1>
             <p className="text-xs text-flore-text-secondary font-noto">صمم تحفتك الفنية بالورد والواقع الافتراضي</p>
           </div>
@@ -228,8 +227,8 @@ export default function AtelierPage() {
           </button>
         </div>
 
-        {/* بيئة العرض التفاعلية */}
-        <div className="flex-1 bg-gradient-to-b from-flore-bg to-white relative flex items-center justify-center p-6">
+        {/* بيئة العرض التفاعلية - تم ضبط الـ relative والـ h-full لانضباط العناصر الداخلية */}
+        <div className="flex-1 bg-gradient-to-b from-flore-bg to-white relative flex items-center justify-center p-6 min-h-[400px]">
           <div className="text-center z-10 max-w-md w-full bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-flore-border/40">
             <Layers className="h-10 w-10 text-flore-primary/60 mx-auto mb-3 animate-pulse" />
             <p className="font-amiri text-base font-bold text-flore-text-primary mb-3">مكونات الباقة الحالية:</p>
@@ -249,7 +248,8 @@ export default function AtelierPage() {
             </div>
           </div>
 
-          <div className="absolute bottom-6 right-6 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-sm border border-flore-border">
+          {/* كرت السعر التقديري العائم المنضبط الآن تماماً داخل الحاضن الأصلي */}
+          <div className="absolute bottom-6 right-6 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-sm border border-flore-border z-20">
             <span className="text-[10px] text-flore-text-secondary block font-noto">السعر التقديري</span>
             <span className="font-bold text-lg text-flore-primary font-noto">{calculateTotal.toFixed(2)} د.أ</span>
           </div>
@@ -266,8 +266,8 @@ export default function AtelierPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-2.5 text-center rounded-xl font-medium text-xs transition-all ${activeTab === tab
-                  ? 'bg-flore-primary text-white shadow-sm font-bold'
-                  : 'text-flore-text-secondary hover:text-flore-primary hover:bg-flore-bg'
+                ? 'bg-flore-primary text-white shadow-sm font-bold'
+                : 'text-flore-text-secondary hover:text-flore-primary hover:bg-flore-bg'
                 }`}
             >
               {tab === 'base' && '1. القاعدة والتغليف'}
