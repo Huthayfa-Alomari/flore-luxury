@@ -1,5 +1,9 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/catalog/page": "app/catalog/page.js",
+  "/login/page": "app/login/page.js",
+  "/ar/page": "app/ar/page.js",
+  "/cart/page": "app/cart/page.js",
   "/page": "app/page.js",
-  "/api/ai/chat/route": "app/api/ai/chat/route.js",
-  "/ai-assistant/page": "app/ai-assistant/page.js"
+  "/atelier/page": "app/atelier/page.js"
 }
