@@ -1,5 +1,8 @@
 'use client'
 
+// إجبار المترجم على الرندر الديناميكي لتخطي فحص السيرفر للصفحات ثلاثية الأبعاد
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, Smartphone, RotateCcw, Flower2 } from 'lucide-react'
@@ -9,14 +12,42 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { useARSupport } from '@/hooks/useAR'
 import type { Product } from '@/types'
 
+// تعريف الوسم المخصص لتجنب مشاكل الـ Typescript بالـ Compilation
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        src: string | null;
+        poster?: string;
+        alt?: string;
+        'camera-controls'?: boolean;
+        'auto-rotate'?: boolean;
+        ar?: boolean;
+        'ar-modes'?: string;
+        'touch-action'?: string;
+        'shadow-intensity'?: string;
+        exposure?: string;
+      }, HTMLElement>;
+    }
+  }
+}
+
 function ModelViewer({ product }: { product: Product }) {
+  const [isMounted, setIsMounted] = useState(false)
+
   useEffect(() => {
-    import('@google/model-viewer')
+    setIsMounted(true)
+    if (typeof window !== 'undefined' && !customElements.get('model-viewer')) {
+      import('@google/model-viewer')
+        .then(() => console.log('Model Viewer loaded in standalone AR page'))
+        .catch((err) => console.error('Failed to load model-viewer:', err))
+    }
   }, [])
+
+  if (!isMounted) return null
 
   return (
     <div className="relative w-full h-full">
-      {/* @ts-ignore */}
       <model-viewer
         src={product.model_url}
         poster={product.image}
@@ -30,13 +61,14 @@ function ModelViewer({ product }: { product: Product }) {
         exposure="0.8"
         style={{ width: '100%', height: '100%', borderRadius: '1.5rem' }}
       >
-        <button
+        {/* تم تحويله إلى div وتمرير ستايل تفاعلي لحل مشكلة الـ Event handlers passed to Client Component props */}
+        <div
           slot="ar-button"
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-8 py-4 rounded-xl font-noto font-medium shadow-lg hover:bg-flore-primary-dark transition-colors flex items-center gap-2"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-8 py-4 rounded-xl font-noto font-medium shadow-lg hover:bg-opacity-90 transition-all flex items-center gap-2 cursor-pointer z-20"
         >
           <Smartphone className="h-5 w-5" />
           عرض في مساحتك
-        </button>
+        </div>
       </model-viewer>
     </div>
   )
@@ -60,9 +92,9 @@ export default function ARPage() {
       .eq('ar_enabled', true)
       .eq('in_stock', true)
 
-    if (data) {
-      setProducts(data)
-      setSelectedProduct(data[0])
+    if (data && data.length > 0) {
+      setProducts(data as Product[])
+      setSelectedProduct(data[0] as Product)
     }
     setLoading(false)
   }
@@ -87,36 +119,39 @@ export default function ARPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Product Selector */}
-        <div className="lg:col-span-1 space-y-4">
-          <h3 className="font-amiri text-xl font-bold">اختر منتجاً</h3>
-          {products.map((product) => (
-            <button
-              key={product.id}
-              onClick={() => setSelectedProduct(product)}
-              className={`w-full text-right p-4 rounded-2xl border-2 transition-all ${
-                selectedProduct?.id === product.id
-                  ? 'border-flore-primary bg-flore-primary/5'
-                  : 'border-flore-border hover:border-flore-primary/50'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="h-16 w-16 rounded-xl bg-cover bg-center flex-shrink-0"
-                  style={{ backgroundImage: `url(${product.image})` }}
-                />
-                <div>
-                  <p className="font-medium text-sm">{product.name}</p>
-                  <p className="text-flore-primary font-bold">{product.price} د.أ</p>
+        {/* مُحدد المنتجات الجانبي */}
+        <div className="lg:col-span-1 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          <h3 className="font-amiri text-xl font-bold text-flore-text-primary">اختر منتجاً</h3>
+          {products.length === 0 ? (
+            <p className="text-xs text-flore-text-secondary font-noto">لا توجد منتجات AR مفعلة حالياً.</p>
+          ) : (
+            products.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => setSelectedProduct(product)}
+                className={`w-full text-right p-4 rounded-2xl border-2 transition-all ${selectedProduct?.id === product.id
+                    ? 'border-flore-primary bg-flore-primary/5'
+                    : 'border-flore-border hover:border-flore-primary/50'
+                  }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="h-16 w-16 rounded-xl bg-cover bg-center flex-shrink-0"
+                    style={{ backgroundImage: `url(${product.image})` }}
+                  />
+                  <div>
+                    <p className="font-medium text-sm text-flore-text-primary">{product.name}</p>
+                    <p className="text-flore-primary font-bold text-xs">{product.price} د.أ</p>
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          )}
         </div>
 
-        {/* AR Viewer */}
+        {/* مسرح العرض الحي */}
         <div className="lg:col-span-2">
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden border border-flore-border shadow-luxury rounded-3xl">
             <CardContent className="p-0">
               <div className="relative aspect-square bg-flore-bg">
                 {selectedProduct?.model_url ? (
@@ -130,25 +165,25 @@ export default function ARPage() {
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center">
                     <Eye className="h-16 w-16 text-flore-text-secondary mb-4" />
-                    <h3 className="font-amiri text-xl font-bold mb-2">
+                    <h3 className="font-amiri text-xl font-bold mb-2 text-flore-text-primary">
                       النموذج ثلاثي الأبعاد غير متوفر
                     </h3>
-                    <p className="text-flore-text-secondary">
+                    <p className="text-flore-text-secondary text-xs">
                       هذا المنتج لا يحتوي على نموذج AR بعد
                     </p>
                   </div>
                 )}
 
-                {/* Fallback for non-AR devices */}
+                {/* تلميح في حال عدم دعم الـ AR على الحواسيب */}
                 {!isSupported && (
-                  <div className="absolute inset-0 bg-flore-bg/90 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-flore-bg/90 flex items-center justify-center rounded-3xl">
                     <div className="text-center p-8">
-                      <Smartphone className="h-16 w-16 text-flore-primary mx-auto mb-4" />
-                      <h3 className="font-amiri text-xl font-bold mb-2">
+                      <Smartphone className="h-14 w-14 text-flore-primary mx-auto mb-4 animate-bounce" />
+                      <h3 className="font-amiri text-xl font-bold mb-2 text-flore-text-primary">
                         افتح من الهاتف المحمول
                       </h3>
-                      <p className="text-flore-text-secondary max-w-sm">
-                        تقنية الواقع المعزز تتطلب هاتفاً محمولاً. افتح هذا الرابط من هاتفك لتجربة المنتج في منزلك.
+                      <p className="text-flore-text-secondary max-w-sm text-xs font-noto leading-relaxed">
+                        تقنية الواقع المعزز (AR) تتطلب كاميرا ومستشعرات هاتف محمول. يرجى تصفح هذا الرابط من هاتفك الذكي لمعاينة الورد حياً في غرفتك.
                       </p>
                     </div>
                   </div>
@@ -158,17 +193,17 @@ export default function ARPage() {
           </Card>
 
           <div className="mt-6 grid grid-cols-3 gap-4">
-            <div className="bg-flore-card rounded-2xl p-4 text-center">
-              <RotateCcw className="h-6 w-6 mx-auto mb-2 text-flore-primary" />
-              <p className="text-sm font-medium">تدوير 360°</p>
+            <div className="bg-flore-card border border-flore-border rounded-2xl p-4 text-center">
+              <RotateCcw className="h-5 w-5 mx-auto mb-2 text-flore-primary" />
+              <p className="text-xs font-medium font-noto text-flore-text-primary">تدوير 360°</p>
             </div>
-            <div className="bg-flore-card rounded-2xl p-4 text-center">
-              <Smartphone className="h-6 w-6 mx-auto mb-2 text-flore-primary" />
-              <p className="text-sm font-medium">عرض حقيقي</p>
+            <div className="bg-flore-card border border-flore-border rounded-2xl p-4 text-center">
+              <Smartphone className="h-5 w-5 mx-auto mb-2 text-flore-primary" />
+              <p className="text-xs font-medium font-noto text-flore-text-primary">عرض حقيقي</p>
             </div>
-            <div className="bg-flore-card rounded-2xl p-4 text-center">
-              <Eye className="h-6 w-6 mx-auto mb-2 text-flore-primary" />
-              <p className="text-sm font-medium">مقياس حقيقي</p>
+            <div className="bg-flore-card border border-flore-border rounded-2xl p-4 text-center">
+              <Eye className="h-5 w-5 mx-auto mb-2 text-flore-primary" />
+              <p className="text-xs font-medium font-noto text-flore-text-primary">مقياس حقيقي</p>
             </div>
           </div>
         </div>
