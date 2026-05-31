@@ -8,7 +8,6 @@ import { Flower2, Search, ShoppingBag, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/lib/store/cart-store'
 import { ThemeToggle } from './ThemeToggle'
-import { Button } from './ui/Button'
 
 const navLinks = [
   { href: '/', label: 'الرئيسية' },
@@ -24,12 +23,25 @@ export function Navbar() {
   const pathname = usePathname()
   const { user } = useAuth()
 
-  // استدعاء الـ count من الـ store المحدث
   const itemCount = useCart((state) => state.getCount())
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // 🚨 جدار الحماية: منع الـ Server من رندرة المكون تفاعلياً بهيدريشن ناقص أثناء الـ Build
+  if (!mounted) {
+    return (
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 border-b border-flore-border h-20">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Flower2 className="h-8 w-8 text-flore-primary" />
+            <span className="font-playfair text-xl font-bold text-flore-primary">FLORÉ</span>
+          </div>
+        </div>
+      </nav>
+    )
+  }
 
   return (
     <>
@@ -55,9 +67,7 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`font-noto text-sm font-medium transition-colors hover:text-flore-primary ${pathname === link.href
-                    ? 'text-flore-primary'
-                    : 'text-flore-text-secondary'
+                  className={`font-noto text-sm font-medium transition-colors hover:text-flore-primary ${pathname === link.href ? 'text-flore-primary' : 'text-flore-text-secondary'
                     }`}
                 >
                   {link.label}
@@ -67,7 +77,7 @@ export function Navbar() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {/* Search */}
+              {/* Search Input Overlay */}
               <AnimatePresence>
                 {searchOpen && (
                   <motion.div
@@ -85,46 +95,41 @@ export function Navbar() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <Button
-                variant="ghost"
-                size="icon"
+
+              {/* Search Button */}
+              <button
                 onClick={() => setSearchOpen(!searchOpen)}
+                className="p-2 rounded-xl hover:bg-black/5 transition-colors text-flore-text-primary"
                 aria-label="بحث"
               >
                 <Search className="h-5 w-5" />
-              </Button>
+              </button>
 
-              {/* Cart - تم إصلاح الهيكلية منعاً لتمرير الـ handlers بشكل متعارض */}
-              <Link href="/cart" className="relative">
-                <Button variant="ghost" size="icon" aria-label="سلة التسوق">
-                  <ShoppingBag className="h-5 w-5" />
-                  {mounted && itemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-flore-primary text-white text-xs flex items-center justify-center">
-                      {itemCount}
-                    </span>
-                  )}
-                </Button>
+              {/* Cart */}
+              <Link href="/cart" className="relative p-2 rounded-xl hover:bg-black/5 transition-colors text-flore-text-primary">
+                <ShoppingBag className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-flore-primary text-white text-xs flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
               </Link>
 
               {/* User */}
-              <Link href={user ? '/profile' : '/login'}>
-                <Button variant="ghost" size="icon" aria-label="حسابي">
-                  <User className="h-5 w-5" />
-                </Button>
+              <Link href={user ? '/profile' : '/login'} className="p-2 rounded-xl hover:bg-black/5 transition-colors text-flore-text-primary">
+                <User className="h-5 w-5" />
               </Link>
 
               <ThemeToggle />
 
               {/* Mobile Menu Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
+              <button
+                className="p-2 rounded-xl hover:bg-black/5 transition-colors text-flore-text-primary md:hidden"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="القائمة"
               >
                 {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -153,16 +158,16 @@ export function Navbar() {
               <div className="border-t border-flore-border pt-6 mt-4">
                 {user ? (
                   <Link href="/profile" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full">
+                    <span className="block w-full text-center border border-flore-border rounded-xl py-3 text-sm font-medium hover:bg-black/5 transition-colors">
                       حسابي
-                    </Button>
+                    </span>
                   </Link>
                 ) : (
                   <div className="flex gap-3">
                     <Link href="/login" className="flex-1" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full">
+                      <span className="block w-full text-center bg-flore-primary text-white rounded-xl py-3 text-sm font-medium hover:bg-flore-primary-dark transition-colors">
                         تسجيل الدخول
-                      </Button>
+                      </span>
                     </Link>
                   </div>
                 )}
