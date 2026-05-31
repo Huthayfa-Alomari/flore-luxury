@@ -11,18 +11,12 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-
-  // 1. إضافة تجاهل أخطاء الـ ESLint لضمان نجاح الـ Build السحابي
   eslint: {
     ignoreDuringBuilds: true,
   },
-
-  // 2. إضافة تجاهل أخطاء الـ TypeScript لمنع توقف السيرفر بسبب تضارب الأنواع
   typescript: {
     ignoreBuildErrors: true,
   },
-
-  // PWA headers
   async headers() {
     return [
       {
@@ -45,7 +39,6 @@ const nextConfig = {
       },
     ]
   },
-  // Redirects
   async redirects() {
     return [
       {

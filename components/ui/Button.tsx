@@ -1,49 +1,49 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
+import { useState, useEffect } from 'react'
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flore-primary disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-flore-primary text-white hover:bg-flore-primary-dark shadow-luxury",
-        gold: "bg-flore-gold-dark text-white hover:bg-[#B8954A] shadow-luxury",
-        outline: "border-2 border-flore-border bg-transparent hover:bg-flore-subtle text-flore-text-primary",
-        ghost: "hover:bg-flore-subtle text-flore-text-primary",
-        secondary: "bg-flore-subtle text-flore-text-primary hover:bg-flore-gold/30",
-      },
-      size: {
-        default: "h-12 px-6 py-3",
-        sm: "h-9 px-4 py-2",
-        lg: "h-14 px-8 py-4 text-base",
-        icon: "h-12 w-12",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
+  size?: 'sm' | 'md' | 'lg' | 'icon'
+  children: React.ReactNode
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  className = '',
+  children,
+  ...props
+}: ButtonProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // جدار حماية لمنع تمرير الأحداث التفاعلية أثناء رندرة السيرفر الاستاتيكية
+  const baseStyles = 'inline-flex items-center justify-center rounded-xl font-medium transition-colors focus:outline-none'
+
+  const variants = {
+    primary: 'bg-flore-primary text-white hover:bg-flore-primary/90',
+    secondary: 'bg-flore-secondary text-flore-text-primary hover:bg-flore-secondary/90',
+    outline: 'border border-flore-border bg-transparent hover:bg-black/5',
+    ghost: 'bg-transparent hover:bg-black/5'
   }
-)
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-  VariantProps<typeof buttonVariants> { }
-
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
+  const sizes = {
+    sm: 'px-3 h-9 text-xs',
+    md: 'px-4 h-11 text-sm',
+    lg: 'px-6 h-13 text-base',
+    icon: 'h-10 w-10'
   }
-)
-Button.displayName = "Button"
 
-export { Button, buttonVariants }
+  return (
+    <button
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      {...(mounted ? props : {})} // 🚨 السحر هنا: لا تمرر الـ onClick للسيرفر إلا بعد الـ mounted!
+    >
+      {children}
+    </button>
+  )
+}
