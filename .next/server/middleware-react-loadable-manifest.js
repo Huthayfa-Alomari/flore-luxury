@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"app\\\\ar\\\\page.tsx -> @google/model-viewer":{"id":7345,"files":["static/chunks/b536a0f1.191fd15d6cfc9a76.js","static/chunks/345.546ee915466fe993.js"]},"components\\\\catalog\\\\ARFlowerViewer.tsx -> @google/model-viewer":{"id":7345,"files":["static/chunks/b536a0f1.191fd15d6cfc9a76.js","static/chunks/345.546ee915466fe993.js"]}}';
