@@ -1,1 +1,9 @@
 node_modules
+# Next.js build and cache
+.next/
+out/
+build/
+node_modules/
+
+# local env files
+.env*.local
