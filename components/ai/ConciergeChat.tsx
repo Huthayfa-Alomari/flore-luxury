@@ -1,12 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X } from 'lucide-react'
 
 export function ConciergeButton() {
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // تأكيد شحن المكون في المتصفح أولاً لمنع تعارض الخادم والعميل
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
 
   return (
     <>
@@ -39,9 +47,9 @@ export function ConciergeButton() {
                 كيف يمكنني مساعدتك اليوم؟
               </p>
               <Link href="/ai-assistant">
-                <button className="w-full bg-flore-primary text-white rounded-xl py-3 text-sm font-medium hover:bg-flore-primary-dark transition-colors">
+                <span className="block w-full bg-flore-primary text-white rounded-xl py-3 text-sm font-medium hover:bg-flore-primary-dark transition-colors text-center cursor-pointer">
                   فتح المحادثة الكاملة
-                </button>
+                </span>
               </Link>
             </div>
           </motion.div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react' // تم إضافة useEffect هنا
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -17,15 +17,17 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false) // حالة لحماية الـ Hydration
+  const [mounted, setMounted] = useState(false)
 
-  // استخدام الـ الـ Hook المصحح
+  // استدعاء الـ Store
   const itemCount = useCart((state) => state.getCount())
 
-  // تفعيل الحالة فور اكتمال تحميل المكون على العميل (Client)
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // 🚨 جدار الحماية الحاسم: منع رندرة المكون تفاعلياً على السيرفر أثناء الـ Build
+  if (!mounted) return null
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-t border-flore-border md:hidden safe-area-pb">
@@ -52,8 +54,7 @@ export function BottomNav() {
                   className={`h-5 w-5 transition-colors ${isActive ? 'text-flore-primary' : 'text-flore-text-secondary'
                     }`}
                 />
-                {/* التعديل: شرط mounted يمنع الـ Mismatch بين السيرفر والمتصفح */}
-                {item.href === '/cart' && mounted && itemCount > 0 && (
+                {item.href === '/cart' && itemCount > 0 && (
                   <span className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-flore-primary text-white text-[10px] flex items-center justify-center">
                     {itemCount}
                   </span>
@@ -66,7 +67,7 @@ export function BottomNav() {
                 {item.label}
               </span>
             </Link>
-          )
+          );
         })}
       </div>
     </nav>
