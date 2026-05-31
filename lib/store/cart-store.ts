@@ -23,7 +23,6 @@ interface CartState {
   getCount: () => number
 }
 
-// التعديل الأساسي هنا: تم ضبط الـ Generic والـ Currying للأقواس بشكل صحيح
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
@@ -67,7 +66,7 @@ export const useCart = create<CartState>()(
       },
     }),
     {
-      name: 'flore-cart', // اسم المفتاح في الـ LocalStorage
+      name: 'flore-cart',
     }
   )
 )
