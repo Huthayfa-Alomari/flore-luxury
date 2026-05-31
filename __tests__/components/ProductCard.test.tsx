@@ -1,11 +1,11 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { ProductCard } from '@/components/catalog/ProductCard'
 
 const mockProduct = {
   id: '1',
   name: 'وردة حمراء',
   name_en: 'Red Rose',
-  category: 'bouquets',
+  category: 'bouquets' as const,
   price: 45,
   currency: 'JOD',
   image: 'https://example.com/rose.jpg',
@@ -23,15 +23,15 @@ const mockProduct = {
 
 describe('ProductCard', () => {
   it('renders product information correctly', () => {
-    render(<ProductCard product={mockProduct} />)
+    const { getByText } = render(<ProductCard product={mockProduct} />)
 
-    expect(screen.getByText('وردة حمراء')).toBeInTheDocument()
-    expect(screen.getByText('45 د.أ')).toBeInTheDocument()
-    expect(screen.getByText('الأكثر مبيعاً')).toBeInTheDocument()
+    expect(getByText('وردة حمراء')).toBeDefined()
+    expect(getByText('45 د.أ')).toBeDefined()
+    expect(getByText('الأكثر مبيعاً')).toBeDefined()
   })
 
   it('has add to cart button', () => {
-    render(<ProductCard product={mockProduct} />)
-    expect(screen.getByText('أضف للسلة')).toBeInTheDocument()
+    const { getByText } = render(<ProductCard product={mockProduct} />)
+    expect(getByText('أضف للسلة')).toBeDefined()
   })
 })

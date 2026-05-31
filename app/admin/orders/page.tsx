@@ -58,7 +58,7 @@ export default function AdminOrdersPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
+          variant={filter === 'all' ? 'primary' : 'outline'}
           size="sm"
           onClick={() => setFilter('all')}
         >
@@ -67,7 +67,7 @@ export default function AdminOrdersPage() {
         {orderStatuses.slice(0, -1).map((status) => (
           <Button
             key={status.value}
-            variant={filter === status.value ? 'default' : 'outline'}
+            variant={filter === status.value ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setFilter(status.value)}
           >

@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
-import { useCartStore } from '@/lib/store/cart-store'
+import { useCart as useCartStore } from '@/lib/store/cart-store'
 
 const mockProduct = {
   id: '1',
@@ -33,7 +33,7 @@ describe('Cart Store', () => {
     const { result } = renderHook(() => useCartStore())
 
     act(() => {
-      result.current.addItem(mockProduct)
+      result.current.addItem({ product: mockProduct, quantity: 1 })
     })
 
     expect(result.current.items).toHaveLength(1)
@@ -45,7 +45,7 @@ describe('Cart Store', () => {
     const { result } = renderHook(() => useCartStore())
 
     act(() => {
-      result.current.addItem(mockProduct)
+      result.current.addItem({ product: mockProduct, quantity: 1 })
       result.current.updateQuantity('1', 3)
     })
 
@@ -56,7 +56,7 @@ describe('Cart Store', () => {
     const { result } = renderHook(() => useCartStore())
 
     act(() => {
-      result.current.addItem(mockProduct)
+      result.current.addItem({ product: mockProduct, quantity: 1 })
       result.current.removeItem('1')
     })
 
@@ -67,7 +67,7 @@ describe('Cart Store', () => {
     const { result } = renderHook(() => useCartStore())
 
     act(() => {
-      result.current.addItem(mockProduct, 2)
+      result.current.addItem({ product: mockProduct, quantity: 2 })
     })
 
     expect(result.current.getTotal()).toBe(90)
