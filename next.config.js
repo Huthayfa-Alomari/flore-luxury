@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // 💡 قم بتعليق هذا السطر أو حذفه لأن Vercel لا يحتاجه
+  // output: 'standalone', 
   images: {
     domains: ['images.unsplash.com', 'localhost'],
     remotePatterns: [
@@ -11,10 +12,6 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-  // ❌ شيل هاي
-  // experimental: {
-  //   serverActions: true,
-  // },
   async headers() {
     return [
       {
