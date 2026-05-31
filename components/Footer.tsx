@@ -1,5 +1,3 @@
-"use client"
-
 import Link from 'next/link'
 import { Flower2, Instagram, Phone, MapPin } from 'lucide-react'
 

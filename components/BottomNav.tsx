@@ -19,12 +19,15 @@ export function BottomNav() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
 
-  // استدعاء الـ Store
-  const itemCount = useCart((state) => state.getCount())
+  // 💡 التعديل هنا: نقرأ الـ Store كاملاً بدون استدعاء getCount مباشرة لمنع انهيار الخادم
+  const cartStore = useCart()
+  const [itemCount, setItemCount] = useState(0)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // 💡 الحساب الفعلي لعدد العناصر لا يتم إلا على المتصفح بعد التحميل
+    setItemCount(cartStore.getCount())
+  }, [cartStore])
 
   // 🚨 جدار الحماية الحاسم: منع رندرة المكون تفاعلياً على السيرفر أثناء الـ Build
   if (!mounted) return null
