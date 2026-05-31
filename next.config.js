@@ -11,9 +11,6 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-  experimental: {
-    serverActions: true,
-  },
 
   // 1. إضافة تجاهل أخطاء الـ ESLint لضمان نجاح الـ Build السحابي
   eslint: {
