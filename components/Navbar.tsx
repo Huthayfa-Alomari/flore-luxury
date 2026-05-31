@@ -23,11 +23,15 @@ export function Navbar() {
   const pathname = usePathname()
   const { user } = useAuth()
 
-  const itemCount = useCart((state) => state.getCount())
+  // 💡 الحل: نقرأ الـ store كاملاً هنا بدون استدعاء دالة getCount مباشرة في السيرفر
+  const cartStore = useCart()
+  const [itemCount, setItemCount] = useState(0)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // 💡 لا يتم حساب المشتريات إلا بعد التأكد من التحميل الكامل على المتصفح (Client-side)
+    setItemCount(cartStore.getCount())
+  }, [cartStore])
 
   // 🚨 جدار الحماية: منع الـ Server من رندرة المكون تفاعلياً بهيدريشن ناقص أثناء الـ Build
   if (!mounted) {
