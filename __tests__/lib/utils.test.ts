@@ -48,17 +48,19 @@ describe('Utils', () => {
   })
 
   describe('debounce', () => {
-    it('delays function execution', (done) => {
-      const mockFn = jest.fn()
+    it('delays function execution', () => {
+      const mockFn = vi.fn()
       const debouncedFn = debounce(mockFn, 100)
 
       debouncedFn('test')
       expect(mockFn).not.toHaveBeenCalled()
 
-      setTimeout(() => {
-        expect(mockFn).toHaveBeenCalledWith('test')
-        done()
-      }, 150)
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          expect(mockFn).toHaveBeenCalledWith('test')
+          resolve()
+        }, 150)
+      })
     })
   })
 })

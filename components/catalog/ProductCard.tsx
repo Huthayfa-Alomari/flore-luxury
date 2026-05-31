@@ -67,7 +67,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex gap-2">
             <Button
-              variant="default"
+              variant="primary"
               className="flex-1 gap-2"
               // التعديل 3: تمرير الكائن بالصيغة الصحيحة المتوافقة مع الـ CartItem Interface
               onClick={() => addItem({ product, quantity: 1 })}

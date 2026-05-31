@@ -114,7 +114,7 @@ function CatalogContent() {
           {categories.map((cat) => (
             <Button
               key={cat.id}
-              variant={activeCategory === cat.id ? 'default' : 'outline'}
+              variant={activeCategory === cat.id ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setActiveCategory(cat.id)}
             >

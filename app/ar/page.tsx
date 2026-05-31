@@ -12,25 +12,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { useARSupport } from '@/hooks/useAR'
 import type { Product } from '@/types'
 
-// تعريف الوسم المخصص لتجنب مشاكل الـ Typescript بالـ Compilation
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        src: string | null;
-        poster?: string;
-        alt?: string;
-        'camera-controls'?: boolean;
-        'auto-rotate'?: boolean;
-        ar?: boolean;
-        'ar-modes'?: string;
-        'touch-action'?: string;
-        'shadow-intensity'?: string;
-        exposure?: string;
-      }, HTMLElement>;
-    }
-  }
-}
+// model-viewer types are defined globally in types/model-viewer.d.ts
 
 function ModelViewer({ product }: { product: Product }) {
   const [isMounted, setIsMounted] = useState(false)

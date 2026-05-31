@@ -207,7 +207,7 @@ export default function HomeContent({ featuredProducts }: HomeContentProps) {
                                 اختر الزهور، الألوان، التغليف والمزهرية. صمم بوكيه فريد يعبر عن مشاعرك.
                             </p>
                             <Link href="/atelier">
-                                <Button variant="gold" className="gap-2">
+                                <Button variant="secondary" className="gap-2">
                                     <Sparkles className="h-4 w-4" />
                                     ابدأ التصميم
                                 </Button>
