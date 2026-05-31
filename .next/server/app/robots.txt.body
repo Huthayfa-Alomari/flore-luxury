@@ -1,0 +1,13 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /profile
+Disallow: /cart
+
+User-Agent: Googlebot
+Allow: /
+Disallow: /admin
+
+Host: https://flore.jo
+Sitemap: https://flore.jo/sitemap.xml
