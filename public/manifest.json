@@ -1,11 +1,11 @@
 {
   "name": "FLORÉ",
   "short_name": "FLORÉ",
-  "description": "بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان",
+  "description": "بوكيهات فاخرة بتصاميم حصرية، توصيل سريع وموثوق في عمّان والزرقاء",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAF9F6",
-  "theme_color": "#0D5C63",
+  "theme_color": "#4C1D95",
   "orientation": "portrait",
   "scope": "/",
   "lang": "ar",
