@@ -5,7 +5,8 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { Navbar } from '@/components/Navbar'
 import { BottomNav } from '@/components/BottomNav'
 import { Footer } from '@/components/Footer'
-import { ConciergeButton } from '@/components/ai/ConciergeChat'
+import { PushNotification } from '@/components/PushNotification'
+import Script from 'next/script'
 
 const amiri = Amiri({
   subsets: ['arabic'],
@@ -34,12 +35,22 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'FLORÉ Luxury | فلوري - الفخامة في كل تفصيلة',
-  description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان. اكتشف مجموعتنا الفريدة من الزهور والهدايا الفاخرة.',
-  keywords: ['زهور', 'بوكيه', 'فاخر', 'عمّان', 'أردن', 'هدايا', 'توصيل', 'ورد', 'مناسبات'],
-  authors: [{ name: 'FLORÉ' }],
-  creator: 'FLORÉ',
-  publisher: 'FLORÉ',
+  metadataBase: new URL('https://flore.jo'),
+  title: {
+    default: 'FLORÉ Luxury | فلوري - الفخامة في كل تفصيلة',
+    template: '%s | FLORÉ Luxury'
+  },
+  description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان، الزرقاء، وكافة أنحاء المملكة. اكتشف مجموعتنا الفريدة من الزهور والهدايا الفاخرة.',
+  keywords: ['زهور', 'بوكيه', 'فاخر', 'عمّان', 'الزرقاء', 'أردن', 'هدايا', 'توصيل', 'ورد', 'مناسبات', 'زهور اونلاين'],
+  authors: [{ name: 'FLORÉ Luxury' }],
+  creator: 'FLORÉ Luxury',
+  publisher: 'FLORÉ Luxury',
+  manifest: '/manifest.json', // الربط الرسمي لملف الـ PWA لمنع تعارض الـ Build
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'FLORÉ Luxury',
+  },
   robots: {
     index: true,
     follow: true,
@@ -55,28 +66,24 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ar_JO',
     url: 'https://flore.jo',
-    siteName: 'FLORÉ',
-    title: 'FLORÉ |الفخامة في كل تفصيلة',
-    description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان.',
+    siteName: 'FLORÉ Luxury',
+    title: 'FLORÉ Luxury | فلوري - الفخامة في كل تفصيلة',
+    description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان والأردن.',
     images: [
       {
-        url: 'https://flore.jo/images/og-default.jpg',
+        url: '/images/og-default.jpg',
         width: 1200,
         height: 630,
-        alt: 'FLORÉ',
+        alt: 'FLORÉ Luxury - فلوري',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FLORÉ',
-    description: 'بوكيهات فاخرة بتصاميم حصرية في عمّان',
-    images: ['https://flore.jo/images/og-default.jpg'],
-    creator: '@flore_jo',
-    site: '@flore_jo',
-  },
-  verification: {
-    google: 'your-google-verification-code',
+    title: 'FLORÉ Luxury | فلوري',
+    description: 'بوكيهات فاخرة بتصاميم حصرية في عمّان والزرقاء',
+    images: ['/images/og-default.jpg'],
+    creator: '@flore_luxury',
   },
   alternates: {
     canonical: 'https://flore.jo',
@@ -85,7 +92,9 @@ export const metadata: Metadata = {
       'en-JO': 'https://flore.jo/en',
     },
   },
-  category: 'ecommerce',
+  verification: {
+    google: 'your-google-verification-code',
+  },
 }
 
 export const viewport: Viewport = {
@@ -96,58 +105,72 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  userScalable: true,
-  colorScheme: 'light dark',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      dir="rtl"
-      lang="ar"
-      suppressHydrationWarning
-      className={`${amiri.variable} ${noto.variable} ${playfair.variable} ${inter.variable}`}
-    >
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="FLORÉ" />
-        <meta name="format-detection" content="telephone=no" />
-        <script
-          type="module"
-          src="https://unpkg.com/@google/model-viewer@^3.5.0/dist/model-viewer.min.js"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then((reg) => console.log('SW registered:', reg.scope))
-                    .catch((err) => console.log('SW registration failed:', err));
-                });
-              }
-            `,
-          }}
-        />
-      </head>
-      <body className="font-noto bg-flore-bg text-flore-text-primary antialiased">
-        <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem>
+    <html lang="ar" dir="rtl" className={`${amiri.variable} ${noto.variable} ${playfair.variable} ${inter.variable}`}>
+      {/* تم إفراغ الـ <head> اليدوي لتجنب تحذيرات الـ Console وأخطاء مطابقة الـ Server/Client */}
+      <body className="font-noto bg-flore-bg text-flore-text-primary min-h-screen">
+        <ThemeProvider>
           <Navbar />
-          <main className="min-h-screen pt-20 pb-20 md:pb-0">
-            {children}
-          </main>
-          <ConciergeButton />
+          <main className="pt-16 pb-20 md:pb-0">{children}</main>
           <BottomNav />
           <Footer />
+          <PushNotification />
         </ThemeProvider>
+
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XXXXXXXXXX');
+          `}
+        </Script>
+
+        {/* Schema.org Structured Data */}
+        <Script
+          id="schema-org"
+          type="application/ld+json"
+          strategy="afterInteractive"
+        >
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'LocalBusiness',
+            name: 'FLORÉ Luxury',
+            image: 'https://flore.jo/images/og-default.jpg',
+            description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان، الزرقاء، وكافة محافظات الأردن',
+            url: 'https://flore.jo',
+            telephone: '+962790000000',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: 'عمّان',
+              addressCountry: 'JO',
+            },
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: 31.9454,
+              longitude: 35.9284,
+            },
+            openingHoursSpecification: [
+              {
+                '@type': 'OpeningHoursSpecification',
+                dayOfWeek: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+                opens: '09:00',
+                closes: '21:00',
+              },
+            ],
+            priceRange: '$$$',
+            currenciesAccepted: 'JOD',
+            paymentAccepted: 'Cash, Credit Card, CliQ',
+          })}
+        </Script>
       </body>
     </html>
   )
