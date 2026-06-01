@@ -147,7 +147,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             image: 'https://flore.jo/images/og-default.jpg',
             description: 'بوكيهات فاخرة بتصاميم حصرية، توصيل سريع في عمّان، الزرقاء، وكافة محافظات الأردن',
             url: 'https://flore.jo',
-            telephone: '+962790000000',
+            telephone: '+962788570246',
             address: {
               '@type': 'PostalAddress',
               addressLocality: 'عمّان',
