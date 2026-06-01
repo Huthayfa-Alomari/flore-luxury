@@ -1,119 +1,145 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Package, Users, DollarSign, TrendingUp, Eye, CheckCircle, XCircle, PlusCircle, Image as ImageIcon, Tag, FileText } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import {
+  Package, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, Search, RefreshCw, Download
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { formatPrice, formatDate, orderStatuses } from '@/lib/utils'
 import type { Order } from '@/types'
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
-  const [stats, setStats] = useState({ total: 0, revenue: 0, customers: 0, pending: 0 })
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
-  const [activeTab, setActiveTab] = useState<'orders' | 'add-product'>('orders') // التبديل بين الطلبات وإضافة منتج
-  const [productMessage, setProductMessage] = useState('')
-  const [productLoading, setProductLoading] = useState(false)
-
-  // حقول فورم إضافة منتج جديد
-  const [productForm, setProductForm] = useState({
-    name: '',
-    price: '',
-    image: '',
-    description: '',
-    category: 'bouquets'
+  const [stats, setStats] = useState({
+    total: 0,
+    revenue: 0,
+    todayRevenue: 0,
+    customers: 0,
+    pending: 0,
+    delivered: 0,
+    cancelled: 0
   })
-
+  const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false) // 👈 جدار الحماية من الـ Hydration Mismatch
+  const [filter, setFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
-    fetchOrders()
-    fetchStats()
+    setMounted(true)
+    checkAdmin()
+    fetchData()
   }, [])
 
-  const fetchOrders = async () => {
-    const { data } = await supabase
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    const { data: role } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+    if (!role || role.role !== 'admin') {
+      router.push('/')
+    }
+  }
+
+  const fetchData = async () => {
+    setLoading(true)
+    const { data: ordersData } = await supabase
       .from('orders')
       .select('*')
       .order('created_at', { ascending: false })
-    if (data) setOrders(data as Order[])
+
+    if (ordersData) {
+      setOrders(ordersData as Order[])
+      calculateStats(ordersData as Order[])
+    }
     setLoading(false)
   }
 
-  const fetchStats = async () => {
-    const { data: ordersData } = await supabase.from('orders').select('total, status')
-    const { data: usersData } = await supabase.from('profiles').select('id', { count: 'exact' })
+  const calculateStats = (orders: Order[]) => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    if (ordersData) {
-      const revenue = ordersData.reduce((s, o) => s + (o.total || 0), 0)
-      const pending = ordersData.filter(o => o.status === 'received').length
-      setStats({
-        total: ordersData.length,
-        revenue,
-        customers: usersData?.length || 0,
-        pending,
+    const revenue = orders.reduce((s, o) => s + (o.total || 0), 0)
+    const todayRevenue = orders
+      .filter(o => {
+        if (!o.created_at) return false
+        return new Date(o.created_at) >= today
       })
-    }
+      .reduce((s, o) => s + (o.total || 0), 0)
+
+    setStats({
+      total: orders.length,
+      revenue,
+      todayRevenue,
+      customers: new Set(orders.map(o => o.user_id).filter(Boolean)).size,
+      pending: orders.filter(o => o.status === 'received').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+    })
   }
 
   const updateStatus = async (orderId: string, status: string) => {
     const { error } = await supabase
       .from('orders')
-      .update({ status })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', orderId)
 
     if (!error) {
       setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o))
-      // تحديث الإحصائيات بعد تغيير الحالة
-      fetchStats()
     }
   }
 
-  // معالجة إضافة منتج جديد
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setProductLoading(true)
-    setProductMessage('')
-
-    try {
-      const { error } = await supabase
-        .from('products')
-        .insert([
-          {
-            name: productForm.name,
-            price: parseFloat(productForm.price),
-            image: productForm.image,
-            description: productForm.description,
-            category: productForm.category,
-          }
-        ])
-
-      if (error) throw error
-
-      setProductMessage('✨ تم إضافة المنتج الفاخر بنجاح إلى معروضات Floré!')
-      setProductForm({ name: '', price: '', image: '', description: '', category: 'bouquets' })
-    } catch (err: any) {
-      console.error(err)
-      setProductMessage(`❌ خطأ في الإضافة: ${err.message || 'يرجى المحاولة مرة أخرى'}`)
-    } finally {
-      setProductLoading(false)
+  const filteredOrders = orders.filter(order => {
+    if (filter !== 'all' && order.status !== filter) return false
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      return (
+        order.customer_name?.toLowerCase().includes(query) ||
+        order.customer_phone?.includes(query) ||
+        order.id.toLowerCase().includes(query)
+      )
     }
-  }
+    return true
+  })
 
-  const filteredOrders = filter === 'all'
-    ? orders
-    : orders.filter(o => o.status === filter)
+  const exportCSV = () => {
+    const headers = ['ID', 'Customer', 'Phone', 'Total', 'Status', 'Date']
+    const rows = filteredOrders.map(o => [
+      o.id.slice(0, 8),
+      o.customer_name || '-',
+      o.customer_phone,
+      o.total,
+      o.status,
+      new Date(o.created_at).toLocaleDateString('ar-JO')
+    ])
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+  }
 
   const statCards = [
-    { label: 'إجمالي الطلبات', value: stats.total, icon: Package, color: 'bg-blue-100 text-blue-600' },
-    { label: 'الإيرادات', value: formatPrice(stats.revenue), icon: DollarSign, color: 'bg-green-100 text-green-600' },
-    { label: 'العملاء', value: stats.customers, icon: Users, color: 'bg-purple-100 text-purple-600' },
-    { label: 'معلّقة', value: stats.pending, icon: TrendingUp, color: 'bg-orange-100 text-orange-600' },
+    { label: 'إجمالي الطلبات', value: stats.total, icon: Package, color: 'bg-blue-100 text-blue-600', trend: '+12%' },
+    { label: 'الإيرادات', value: formatPrice(stats.revenue), icon: DollarSign, color: 'bg-green-100 text-green-600', trend: '+8%' },
+    { label: 'إيرادات اليوم', value: formatPrice(stats.todayRevenue), icon: TrendingUp, color: 'bg-purple-100 text-purple-600', trend: 'مباشر' },
+    { label: 'معلّقة', value: stats.pending, icon: Clock, color: 'bg-orange-100 text-orange-600', trend: 'تحتاج اهتمام' },
   ]
 
-  if (loading) {
+  // 🚨 منع الرندرة الاستاتيكية المشوهة على السيرفر قبل الـ mounted والـ loading الكامل
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-flore-bg">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flore-primary" />
@@ -122,34 +148,27 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-flore-bg p-4 md:p-8 pb-24">
+    <div className="min-h-screen bg-flore-bg p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="font-amiri text-4xl font-bold text-flore-text-primary">
-            لوحة تحكم المسؤول
-          </h1>
-
-          {/* أزرار التبديل الفاخرة بين الأقسام */}
-          <div className="flex bg-flore-card p-1 rounded-2xl shadow-luxury border border-flore-border w-full md:w-auto">
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'orders' ? 'bg-flore-primary text-white shadow-sm' : 'text-flore-text-secondary hover:text-flore-text-primary'
-                }`}
-            >
-              إدارة الطلبات
-            </button>
-            <button
-              onClick={() => setActiveTab('add-product')}
-              className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'add-product' ? 'bg-flore-primary text-white shadow-sm' : 'text-flore-text-secondary hover:text-flore-text-primary'
-                }`}
-            >
-              <PlusCircle className="h-4 w-4" />
-              إضافة منتج جديد
-            </button>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="font-amiri text-4xl font-bold text-flore-text-primary">لوحة التحكم</h1>
+            <p className="text-flore-text-secondary mt-1">نظرة عامة على أداء المتجر</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={fetchData} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              تحديث
+            </Button>
+            <Button onClick={exportCSV} className="gap-2">
+              <Download className="h-4 w-4" />
+              تصدير CSV
+            </Button>
           </div>
         </div>
 
-        {/* ملخص الإحصائيات السريعة */}
+        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {statCards.map((stat, i) => {
             const Icon = stat.icon
@@ -159,221 +178,205 @@ export default function AdminDashboard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-flore-card rounded-2xl p-6 shadow-luxury border border-flore-border/40"
+                className="bg-flore-card rounded-2xl p-6 shadow-luxury"
               >
                 <div className={`w-12 h-12 rounded-xl ${stat.color} flex items-center justify-center mb-4`}>
                   <Icon className="h-6 w-6" />
                 </div>
                 <p className="text-2xl font-bold text-flore-text-primary">{stat.value}</p>
-                <p className="text-sm text-flore-text-secondary mt-1">{stat.label}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-sm text-flore-text-secondary">{stat.label}</p>
+                  <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                    {stat.trend}
+                  </span>
+                </div>
               </motion.div>
             )
           })}
         </div>
 
-        <AnimatePresence mode="wait">
-          {activeTab === 'orders' ? (
-            // قسم عرض وإدارة الطلبات
-            <motion.div
-              key="orders-tab"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-            >
-              {/* الفلاتر */}
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
-                {['all', 'received', 'arranging', 'en_route', 'delivered'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilter(status)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${filter === status ? 'bg-flore-primary text-white' : 'bg-flore-card text-flore-text-secondary hover:bg-flore-subtle'
-                      }`}
-                  >
-                    {status === 'all' ? 'الكل' : orderStatuses.find(s => s.value === status)?.label || status}
-                  </button>
-                ))}
-              </div>
-
-              {/* الجدول */}
-              <div className="bg-flore-card rounded-3xl shadow-luxury overflow-hidden border border-flore-border/40">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-right border-collapse">
-                    <thead className="bg-flore-subtle/50">
-                      <tr>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">الطلب</th>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">العميل</th>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">المبلغ</th>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">الحالة</th>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">التاريخ</th>
-                        <th className="p-4 text-sm font-medium text-flore-text-secondary border-b border-flore-border">إجراء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOrders.map((order) => {
-                        const statusInfo = orderStatuses.find(s => s.value === order.status)
-                        return (
-                          <tr key={order.id} className="border-b border-flore-border hover:bg-flore-subtle/30 transition-colors">
-                            <td className="p-4">
-                              <p className="font-medium text-flore-text-primary">#{order.id.slice(0, 8)}</p>
-                              <p className="text-xs text-flore-text-secondary">{order.items?.length || 0} منتج</p>
-                            </td>
-                            <td className="p-4">
-                              <p className="font-medium text-flore-text-primary">{order.customer_name || '—'}</p>
-                              <p className="text-xs text-flore-text-secondary" dir="ltr">{order.customer_phone}</p>
-                            </td>
-                            <td className="p-4 font-bold text-flore-primary">
-                              {formatPrice(order.total)}
-                            </td>
-                            <td className="p-4">
-                              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusInfo?.color || ''}`}>
-                                {statusInfo?.label || order.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-sm text-flore-text-secondary">
-                              {formatDate(order.created_at)}
-                            </td>
-                            <td className="p-4">
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => updateStatus(order.id, 'delivered')}
-                                  className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                                  title="تم التسليم"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(order.id, 'cancelled')}
-                                  className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                  title="إلغاء الطلب"
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </button>
-                                <button className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="عرض التفاصيل">
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {filteredOrders.length === 0 && (
-                  <div className="p-12 text-center text-flore-text-secondary font-medium">
-                    لا توجد طلبات في هذا الفلتر حالياً
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ) : (
-            // قسم إضافة زهور ومنتجات جديدة للمتجر
-            <motion.div
-              key="add-product-tab"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              className="max-w-2xl mx-auto"
-            >
-              <div className="bg-flore-card rounded-3xl p-8 shadow-luxury border border-flore-border">
-                <h2 className="font-amiri text-2xl font-bold text-flore-text-primary mb-6 text-center">
-                  إضافة باقة زهور فاخرة جديدة
-                </h2>
-
-                {productMessage && (
-                  <div className={`p-4 rounded-xl mb-6 text-center font-medium text-sm ${productMessage.startsWith('✨') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    {productMessage}
-                  </div>
-                )}
-
-                <form onSubmit={handleAddProduct} className="space-y-5">
-                  <div>
-                    <label className="block text-sm text-flore-text-secondary mb-1">اسم الباقة / المنتج</label>
-                    <div className="relative">
-                      <input
-                        required
-                        type="text"
-                        value={productForm.name}
-                        onChange={e => setProductForm({ ...productForm, name: e.target.value })}
-                        className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 pr-10 focus:border-flore-primary focus:outline-none"
-                        placeholder="مثال: باقة الأوركيد الملكية"
-                      />
-                      <Tag className="absolute right-3 top-3.5 h-5 w-5 text-flore-primary/50" />
+        {/* Charts Row */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-flore-card rounded-3xl p-6 shadow-luxury">
+            <h3 className="font-amiri text-xl font-bold mb-4">توزيع حالات الطلبات</h3>
+            <div className="space-y-3">
+              {orderStatuses.slice(0, 6).map(status => {
+                const count = orders.filter(o => o.status === status.value).length
+                const percentage = stats.total > 0 ? (count / stats.total) * 100 : 0
+                return (
+                  <div key={status.value}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>{status.label}</span>
+                      <span className="font-bold">{count}</span>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-flore-text-secondary mb-1">السعر (دينار أردني)</label>
-                      <input
-                        required
-                        type="number"
-                        step="0.01"
-                        value={productForm.price}
-                        onChange={e => setProductForm({ ...productForm, price: e.target.value })}
-                        className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none"
-                        placeholder="0.00"
+                    <div className="h-2 bg-flore-subtle rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${percentage}%`,
+                          backgroundColor: status.color.includes('green') ? '#67B26F' :
+                            status.color.includes('blue') ? '#3B82F6' :
+                              status.color.includes('yellow') ? '#F5A623' : '#0D5C63'
+                        }}
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-flore-text-secondary mb-1">التصنيف</label>
-                      <select
-                        value={productForm.category}
-                        onChange={e => setProductForm({ ...productForm, category: e.target.value })}
-                        className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none"
-                      >
-                        <option value="bouquets">باقات جاهزة</option>
-                        <option value="luxury">مجموعة فاخرة</option>
-                        <option value="occasions">مناسبات</option>
-                      </select>
-                    </div>
                   </div>
+                )
+              })}
+            </div>
+          </div>
 
-                  <div>
-                    <label className="block text-sm text-flore-text-secondary mb-1">رابط صورة الباقة (URL)</label>
-                    <div className="relative">
-                      <input
-                        required
-                        type="text"
-                        value={productForm.image}
-                        onChange={e => setProductForm({ ...productForm, image: e.target.value })}
-                        className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 pr-10 focus:border-flore-primary focus:outline-none"
-                        placeholder="https://images.unsplash.com/photo-..."
-                        dir="ltr"
-                      />
-                      <ImageIcon className="absolute right-3 top-3.5 h-5 w-5 text-flore-primary/50" />
+          <div className="bg-flore-card rounded-3xl p-6 shadow-luxury">
+            <h3 className="font-amiri text-xl font-bold mb-4">أحدث النشاطات</h3>
+            <div className="space-y-4">
+              {orders.slice(0, 5).map(order => {
+                const statusInfo = orderStatuses.find(s => s.value === order.status)
+                return (
+                  <div key={order.id} className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${statusInfo?.color.split(' ')[0] || 'bg-gray-300'}`} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">طلب #{order.id.slice(0, 8)}</p>
+                      <p className="text-xs text-flore-text-secondary">{order.customer_name || '—'}</p>
                     </div>
+                    <span className="text-sm font-bold">{formatPrice(order.total)}</span>
                   </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
 
-                  <div>
-                    <label className="block text-sm text-flore-text-secondary mb-1">الوصف والمكونات</label>
-                    <div className="relative">
-                      <textarea
-                        required
-                        value={productForm.description}
-                        onChange={e => setProductForm({ ...productForm, description: e.target.value })}
-                        className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 pr-10 focus:border-flore-primary focus:outline-none resize-none"
-                        rows={3}
-                        placeholder="تفاصيل الزهور، ألوان التغليف، ومناسبتها..."
-                      />
-                      <FileText className="absolute right-3 top-3.5 h-5 w-5 text-flore-primary/50" />
-                    </div>
-                  </div>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-flore-text-secondary" />
+            <input
+              type="text"
+              placeholder="بحث بالاسم، رقم الهاتف، أو رقم الطلب..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pr-10 pl-4 py-3 rounded-xl border-2 border-flore-border bg-flore-card focus:border-flore-primary focus:outline-none"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {['all', 'received', 'arranging', 'en_route', 'delivered', 'cancelled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${filter === status
+                    ? 'bg-flore-primary text-white'
+                    : 'bg-flore-card text-flore-text-secondary hover:bg-flore-subtle'
+                  }`}
+              >
+                {status === 'all' ? 'الكل' : orderStatuses.find(s => s.value === status)?.label || status}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                  <Button
-                    type="submit"
-                    disabled={productLoading}
-                    size="lg"
-                    className="w-full gap-2 mt-2 bg-flore-primary text-white hover:bg-flore-gold"
-                  >
-                    <PlusCircle className="h-5 w-5" />
-                    {productLoading ? 'جاري نشر المنتج...' : 'نشر الباقة في المتجر فواً'}
-                  </Button>
-                </form>
-              </div>
-            </motion.div>
+        {/* Orders Table */}
+        <div className="bg-flore-card rounded-3xl shadow-luxury overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right">
+              <thead className="bg-flore-subtle/50">
+                <tr>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">الطلب</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">العميل</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">المنتجات</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">المبلغ</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">الحالة</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">التاريخ</th>
+                  <th className="p-4 text-sm font-medium text-flore-text-secondary">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const statusInfo = orderStatuses.find(s => s.value === order.status)
+                  return (
+                    <motion.tr
+                      key={order.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="border-t border-flore-border hover:bg-flore-subtle/30 transition-colors"
+                    >
+                      <td className="p-4">
+                        <p className="font-medium">#{order.id.slice(0, 8)}</p>
+                        <p className="text-xs text-flore-text-secondary">{order.items?.length || 0} منتج</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="font-medium">{order.customer_name || '—'}</p>
+                        <p className="text-xs text-flore-text-secondary">{order.customer_phone}</p>
+                        <p className="text-xs text-flore-text-secondary">{order.delivery_address}</p>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex -space-x-2">
+                          {order.items?.slice(0, 3).map((item, i) => (
+                            item.product?.image && (
+                              <img
+                                key={i}
+                                src={item.product.image} // 👈 الإصلاح الحاسم هنا لقراءة صورة المنتج بشكل صحيح
+                                alt={item.product.name}
+                                className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                              />
+                            )
+                          ))}
+                          {order.items?.length > 3 && (
+                            <span className="w-8 h-8 rounded-full bg-flore-subtle flex items-center justify-center text-xs font-medium">
+                              +{order.items.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 font-bold text-flore-primary">
+                        {formatPrice(order.total)}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusInfo?.color || ''}`}>
+                          {statusInfo?.label || order.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-flore-text-secondary">
+                        {formatDate(order.created_at)}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-1">
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateStatus(order.id, e.target.value)}
+                            className="text-xs rounded-lg border border-flore-border bg-flore-bg px-2 py-1 focus:border-flore-primary focus:outline-none"
+                          >
+                            {orderStatuses.map(s => (
+                              <option key={s.value} value={s.value}>{s.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => updateStatus(order.id, 'delivered')}
+                            className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200"
+                            title="تم التسليم"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(order.id, 'cancelled')}
+                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                            title="إلغاء"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {filteredOrders.length === 0 && (
+            <div className="p-12 text-center text-flore-text-secondary">
+              لا توجد طلبات في هذا الفلتر
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   )

@@ -1,125 +1,61 @@
-const CACHE_NAME = 'flore-luxury-v1'
-const STATIC_ASSETS = [
-  '/',
-  '/catalog',
-  '/cart',
-  '/login',
-  '/offline.html',
-]
-
-// Install: Cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS)
-    })
-  )
-  self.skipWaiting()
-})
-
-// Activate: Clean old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      )
-    })
-  )
-  self.clients.claim()
-})
-
-// Fetch: Cache-first strategy for static, network-first for API
-self.addEventListener('fetch', (event) => {
-  const { request } = event
-  const url = new URL(request.url)
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') return
-
-  // API calls: Network first, fallback to cache
-  if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
-          return response
-        })
-        .catch(() => caches.match(request))
-    )
-    return
-  }
-
-  // Static assets: Cache first, fallback to network
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached
-
-      return fetch(request).then((response) => {
-        const clone = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
-        return response
-      })
-    })
-  )
-})
-
-// Push notifications
+// 1. الاستماع لحدث وصول الإشعار من السيرفر (Push Event)
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() || {}
+  // حماية في حال وصول إشعار فارغ أو بنص غير متوافق لمنع انهيار الـ Worker
+  if (!event.data) return;
 
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'FLORÉ Luxury', {
-      body: data.body || 'لديك إشعار جديد',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      tag: data.tag || 'default',
-      requireInteraction: false,
-      actions: [
-        { action: 'open', title: 'فتح' },
-        { action: 'close', title: 'إغلاق' },
-      ],
-      data: {
-        url: data.url || '/',
-      },
-    })
-  )
-})
+  try {
+    const data = event.data.json()
 
-// Notification click
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-
-  const { notification } = event
-  const url = notification.data?.url || '/'
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clients) => {
-      // Focus existing window
-      for (const client of clients) {
-        if (client.url === url && 'focus' in client) {
-          return client.focus()
-        }
-      }
-      // Open new window
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(url)
-      }
-    })
-  )
-})
-
-// Background sync for offline orders
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-orders') {
-    event.waitUntil(syncPendingOrders())
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Floré Luxury', {
+        body: data.body || '',
+        icon: data.icon || '/icons/icon-192x192.png',
+        badge: data.badge || '/icons/icon-192x192.png',
+        data: { url: data.data?.url || data.url || '/' }, // يدعم الهيكلين لضمان الأمان
+        requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true,
+        direction: 'rtl', // تضمن تنسيق النصوص العربية من اليمين لليسار بشكل فخم على الهواتف
+        actions: [
+          { action: 'open', title: 'عرض التفاصيل 🌸' },
+          { action: 'close', title: 'تجاهل' }
+        ]
+      })
+    )
+  } catch (err) {
+    console.error('Error parsing push data:', err)
   }
 })
 
-async function syncPendingOrders() {
-  // Implementation for syncing offline orders
-  console.log('Syncing pending orders...')
-}
+// 2. الاستماع لحدث النقر على الإشعار من قِبل العميل (Notification Click Event)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close() // إغلاق الإشعار فوراً من شاشة الهاتف
+
+  // إذا اختار العميل "تجاهل" أو زر الإغلاق، نوقف التنفيذ هنا
+  if (event.action === 'close') return;
+
+  const targetUrl = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    // البحث عن النوافذ المفتوحة للتطبيق حالياً في خلفية الهاتف
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // إذا كان التطبيق مفتوحاً بالفعل، قم بعمل Focus عليه وتوجيهه للرابط المطلوب
+        for (const client of windowClients) {
+          if (client.url === targetUrl && 'focus' in client) {
+            return client.focus()
+          }
+        }
+        // إذا كان التطبيق مفتوحاً ولكن على صفحة أخرى، وجهه للصفحة الجديدة وعمل Focus
+        if (windowClients.length > 0) {
+          const client = windowClients[0]
+          if ('navigate' in client && 'focus' in client) {
+            client.navigate(targetUrl)
+            return client.focus()
+          }
+        }
+        // إذا كان التطبيق مغلقاً تماماً، افتحه في نافذة جديدة (أو داخل الـ PWA Shell)
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl)
+        }
+      })
+  )
+})
