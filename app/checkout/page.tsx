@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { MapPin, Phone, User, MessageSquare, CreditCard, Banknote, MessageCircle } from 'lucide-react'
-// 1. تحديث مسار الـ Store الصحيح والمطابق لمجلدات مشروعك الحالية
+import { MapPin, Phone, User, MessageSquare, CreditCard, Banknote, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useCart } from '@/lib/store/cart-store'
 import { Button } from '@/components/ui/Button'
 import { formatPrice, generateWhatsAppMessage } from '@/lib/utils'
@@ -14,6 +13,8 @@ export default function CheckoutPage() {
     const router = useRouter()
     const { items, getTotal, clearCart } = useCart()
     const [loading, setLoading] = useState(false)
+    const [userId, setUserId] = useState<string | null>(null)
+    const [mounted, setMounted] = useState(false)
     const [form, setForm] = useState({
         name: '',
         phone: '',
@@ -24,11 +25,45 @@ export default function CheckoutPage() {
         notes: '',
     })
 
-    // حماية الصفحة: إذا كانت السلة فارغة يتم التحويل فوراً دون التسبب في خطأ رندر
-    if (items.length === 0) {
-        if (typeof window !== 'undefined') {
-            router.push('/cart')
+    const supabase = createClient()
+
+    // 1. التحقق من حالة الجلسة (مستخدم مسجل أو ضيف)
+    useEffect(() => {
+        setMounted(true)
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+                setUserId(session.user.id)
+                // ملء البيانات الأساسية للمستخدم تلقائياً لتسهيل الدفع
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('full_name, phone')
+                    .eq('id', session.user.id)
+                    .single()
+                
+                if (profile) {
+                    setForm(prev => ({
+                        ...prev,
+                        name: profile.full_name || '',
+                        phone: profile.phone || '',
+                    }))
+                }
+            }
         }
+        checkSession()
+    }, [])
+
+    if (!mounted) {
+        return (
+            <div className="min-h-screen bg-flore-bg flex items-center justify-center">
+                <div className="animate-pulse font-amiri text-xl text-flore-primary">جاري تحميل صفحة الدفع...</div>
+            </div>
+        )
+    }
+
+    // حماية الصفحة: إذا كانت السلة فارغة يتم التحويل فوراً إلى السلة
+    if (items.length === 0) {
+        router.push('/cart')
         return null
     }
 
@@ -38,26 +73,27 @@ export default function CheckoutPage() {
         setLoading(true)
 
         try {
-            const supabase = createClient()
             const total = getTotal()
 
-            // إدخال الطلب الآمن والموثق داخل جداول الـ Supabase لدعم المحاسبة والتدقيق اللوجستي
+            // 2. إدخال الطلب الآمن والموثق داخل Supabase
+            // التأكد من توحيد حالة الحروف (lowercase) لتفادي أخطاء الـ CHECK constraint بقاعدة البيانات
             const { data, error } = await supabase
                 .from('orders')
                 .insert({
+                    user_id: userId, // ربط المستخدم إن وجد، أو تركه null للضيوف
                     items: items.map(item => ({
                         product_id: item.product.id,
                         name: item.product.name,
                         price: item.product.price,
                         qty: item.quantity,
                         image: item.product.image,
-                        customization: item.customization || null, // تمرير التخصيص بأمان
+                        customization: item.customization || null,
                     })),
                     total,
                     currency: 'JOD',
-                    payment_method: form.payment,
+                    payment_method: form.payment.toLowerCase(),
                     delivery_address: form.address,
-                    delivery_region: form.region,
+                    delivery_region: form.region.toLowerCase(),
                     customer_phone: form.phone,
                     customer_name: form.name,
                     gift_message: form.giftMessage || null,
@@ -68,29 +104,65 @@ export default function CheckoutPage() {
 
             if (error) throw error
 
-            // التعامل الذكي والديناميكي مع بوابات الدفع المختارة
+            // 3. التعامل الذكي والديناميكي مع بوابات الدفع المختارة
             if (form.payment === 'whatsapp') {
                 const message = generateWhatsAppMessage(items, total)
                 const whatsappUrl = `https://wa.me/962790000000?text=${encodeURIComponent(message)}`
                 window.open(whatsappUrl, '_blank')
+                
+                // تفريغ السلة والتوجيه المناسب
+                clearCart()
+                if (userId) {
+                    router.push(`/profile?order=${data.id}`)
+                } else {
+                    router.push(`/tracking/${data.id}`)
+                }
             } else if (form.payment === 'cliq') {
-                alert('تم تسجيل طلبك بنجاح 🌸. سيتم إرسال تفاصيل الدفع المباشر عبر تطبيق CliQ إلى رقم هاتفك فوراً.')
+                // الاتصال بـ API الدفع الرقمي الأردني CliQ
+                const cliqRes = await fetch('/api/payment/cliq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orderId: data.id,
+                        phoneNumber: form.phone,
+                    }),
+                })
+
+                const cliqData = await cliqRes.json()
+
+                if (!cliqRes.ok) {
+                    throw new Error(cliqData.error || 'Failed to initialize CliQ payment')
+                }
+
+                // تفريغ السلة وتوجيه المستخدم إلى رابط الدفع
+                clearCart()
+                if (cliqData.paymentUrl) {
+                    window.location.href = cliqData.paymentUrl
+                } else {
+                    alert('تم تسجيل طلبك بنجاح 🌸. سيتم إرسال تفاصيل الدفع المباشر عبر تطبيق CliQ إلى رقم هاتفك فوراً.')
+                    if (userId) {
+                        router.push(`/profile?order=${data.id}`)
+                    } else {
+                        router.push(`/tracking/${data.id}`)
+                    }
+                }
             } else if (form.payment === 'cash') {
                 alert('تم تسجيل طلبك بنجاح 🌸. سيتم الدفع نقداً عند استلام الباقة الفاخرة من السائق.')
+                clearCart()
+                if (userId) {
+                    router.push(`/profile?order=${data.id}`)
+                } else {
+                    router.push(`/tracking/${data.id}`)
+                }
             }
-
-            // تفريغ السلة وتوجيه العميل بأمان إلى صفحة حسابه لتتبع حالة التنسيق والعطر
-            clearCart()
-            router.push(`/profile?order=${data.id}`)
-        } catch (err) {
+        } catch (err: any) {
             console.error('Checkout Insertion Error:', err)
-            alert('حدث خطأ أثناء معالجة الطلب، يرجى المحاولة مرة أخرى أو التواصل معنا مباشرة.')
+            alert(err.message || 'حدث خطأ أثناء معالجة الطلب، يرجى المحاولة مرة أخرى أو التواصل معنا مباشرة.')
         } finally {
             setLoading(false)
         }
     }
 
-    // خيارات الدفع المحلية المعتمدة والمتوافقة مع سلوك العميل في الأردن
     const paymentMethods = [
         { id: 'whatsapp', label: 'واتساب', icon: MessageCircle, desc: 'تأكيد فوري وفاتورة مباشرة' },
         { id: 'cliq', label: 'تطبيق CliQ', icon: Banknote, desc: 'تحويل بنكي أردني فوري' },
@@ -98,8 +170,15 @@ export default function CheckoutPage() {
     ]
 
     return (
-        <div className="min-h-screen bg-flore-bg pb-24 font-noto" dir="rtl">
+        <div className="min-h-screen bg-flore-bg pb-24 font-noto text-right" dir="rtl">
             <div className="max-w-2xl mx-auto px-4 py-12">
+                <button 
+                    onClick={() => router.push('/cart')} 
+                    className="flex items-center gap-2 text-flore-primary mb-6 hover:underline font-medium"
+                >
+                    <ArrowLeft className="h-4 w-4 rotate-180" /> العودة للسلة
+                </button>
+
                 <h1 className="font-amiri text-4xl font-bold text-flore-text-primary mb-3 text-center">
                     إتمام الطلب الفاخر
                 </h1>
@@ -108,7 +187,6 @@ export default function CheckoutPage() {
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-
                     {/* معلومات التواصل */}
                     <section className="bg-flore-card rounded-3xl p-6 shadow-luxury border border-flore-border">
                         <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2 text-flore-primary">
@@ -159,10 +237,6 @@ export default function CheckoutPage() {
                                     <option value="amman">عمّان</option>
                                     <option value="zarqa">الزرقاء</option>
                                     <option value="irbid">إربد</option>
-                                    <option value="salt">السلط</option>
-                                    <option value="madaba">مأدبا</option>
-                                    <option value="karak">الكرك</option>
-                                    <option value="aqaba">العقبة</option>
                                     <option value="other">أخرى</option>
                                 </select>
                             </div>
