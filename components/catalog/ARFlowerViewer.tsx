@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -15,6 +15,7 @@ interface ARFlowerViewerProps {
 export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [isModelLoaded, setIsModelLoaded] = useState(false)
+  const modelViewerRef = useRef<any>(null)
 
   // fallback للصورة الافتراضية في حال كانت الداتا فارغة منعاً لـ 404
   const finalPoster = posterUrl || '/images/placeholder-luxury.jpg'
@@ -94,6 +95,7 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
           </AnimatePresence>
 
           <model-viewer
+            ref={modelViewerRef}
             src={modelUrl}
             poster={finalPoster}
             alt="Floré 3D Luxury Asset Preview"
@@ -107,17 +109,28 @@ export function ARFlowerViewer({ modelUrl, posterUrl, onClose }: ARFlowerViewerP
             style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }}
             // تفعيل الـ Loading State برمجياً عند اكتمال جلب الـ Asset
             onload={() => setIsModelLoaded(true)}
+          />
+
+          {/* زر تشغيل الـ AR حقيقي، آمن للـ Build ومتوافق مع متصفحات الموبايل الصارمة */}
+          <div
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[100]"
+            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
           >
-            {/* زر تشغيل الـ AR حقيقي، آمن للـ Build ومتوافق مع متصفحات الموبايل الصارمة */}
             <button
               type="button"
-              slot="ar-button"
-              onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-flore-primary text-white font-noto font-bold text-xs px-6 py-3 rounded-xl shadow-lg hover:bg-opacity-95 transition-all z-30"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (modelViewerRef.current) {
+                  modelViewerRef.current.activateAR()
+                }
+              }}
+              className="bg-flore-primary text-white font-noto font-bold text-xs px-6 py-3 rounded-xl shadow-lg hover:bg-opacity-95 transition-all"
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
             >
               عرض الباقة في مساحتك الحقيقية
             </button>
-          </model-viewer>
+          </div>
+
         </div>
 
         {/* تلميحات تجربة المستخدم التوجيهية */}
