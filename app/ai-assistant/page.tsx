@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Send, Sparkles, User, Bot, X } from 'lucide-react'
+import { Send, Sparkles, User, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 
@@ -126,16 +126,14 @@ export default function AIAssistantPage() {
                   key={message.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'flex-row-reverse' : ''
-                  }`}
+                  className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''
+                    }`}
                 >
                   <div
-                    className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'user'
+                    className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.role === 'user'
                         ? 'bg-flore-primary text-white'
                         : 'bg-flore-gold text-flore-primary'
-                    }`}
+                      }`}
                   >
                     {message.role === 'user' ? (
                       <User className="h-4 w-4" />
@@ -144,11 +142,10 @@ export default function AIAssistantPage() {
                     )}
                   </div>
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      message.role === 'user'
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === 'user'
                         ? 'bg-flore-primary text-white rounded-tr-sm'
                         : 'bg-flore-subtle text-flore-text-primary rounded-tl-sm'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm leading-relaxed">{message.content}</p>
                   </div>

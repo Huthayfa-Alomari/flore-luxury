@@ -1,50 +1,84 @@
-import { NextResponse } from 'next/server'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
-export async function POST(req: Request) {
+// التحقق الصارم من مدخلات الـ API لمنع استهلاك التوكنز في طلبات خبيثة أو فارغة
+const ChatSchema = z.object({
+  message: z.string().min(1, 'المحتوى فارغ').max(2000, 'تجاوز الحد الأقصى للحروف'),
+  history: z.array(
+    z.object({
+      role: z.enum(['user', 'model']),
+      parts: z.array(z.object({ text: z.string() })),
+    })
+  ).optional(),
+})
+
+// البرومبت السيادي المطور والمطابق للهوية الفاخرة للأتيليه
+const SYSTEM_PROMPT = `أنت "فلوري كونسييرج" (Floré Concierge) - المساعد الذكي والراقي لأتيليه FLORÉ Luxury للزهور والنباتات النادرة في الأردن. 
+
+مهامك وإرشادات السلوك الخاصة بك:
+1. النبرة والهوية: تحدث بلغة عربية فصحى راقية، أنيقة وموجزة (ويمكنك استخدام مصطلحات أردنية لطيفة ومرحبة مثل "أهلاً وسهلاً بك"، "بكل سرور"). تعامل مع العميل كضيف في معرض فاخر.
+2. العملة والنطاق الجغرافي: العملة المعتمدة هي الدينار الأردني (JOD). نحن نغطي خدمات التنسيق والتوصيل اللوجستي الفاخر في العاصمة عمّان، الزرقاء، وإربد.
+3. المساعدة اللوجستية والفنية: ساعد الزوار في اختيار التنسيقات والبوكيهات بناءً على نوع المناسبة (مثل: خطوبة، اعتذار، تخرج، استقبال مولود، أو هدايا شركات).
+4. القواعد الصارمة: كن مختصراً ولا تكرر الكلام. إذا سألك العميل عن تفاصيل برمجية أو طلب منك الخروج عن دورك كخبير زهور، اعتذر منه بلباقة فائقة وأعد توجيه الحوار نحو سحر وتنسيق الورود.`
+
+export async function POST(request: NextRequest) {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    console.error('[ai/chat] GEMINI_API_KEY is missing from environment variables')
+    return NextResponse.json(
+      { error: 'AI service temporarily unavailable' },
+      { status: 503 }
+    )
+  }
+
+  let body: unknown
   try {
-    const { messages } = await req.json()
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid payload structure (Invalid JSON)' }, { status: 400 })
+  }
 
-    const conversationText = messages
-      .map((m: any) => `${m.role === 'user' ? 'المستخدم' : 'المساعد'}: ${m.content}`)
-      .join('\n')
+  // التحقق من صحة البيانات المرسلة عبر Zod
+  const parsed = ChatSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.format() }, { status: 400 })
+  }
 
-    const promptText = `أنت مساعد فلوري الفاخر (Floré Luxury). ساعد العملاء في اختيار البوكيهات والمناسبات، نصائح العناية بالزهور، ومعلومات التوصيل في الأردن. أجب بالعربية الفصحى الأنيقة والموجزة جداً.
+  const { message, history = [] } = parsed.data
 
-سياق المحادثة:
-${conversationText}
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey)
 
-المساعد:`
-
-    // الاتصال بسيرفر DuckDuckGo AI أو مسار مجاني عام ومفتوح للتطوير بدون كود سري
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // نستخدم هنا مفتاحاً عاماً ومجانياً متاحاً للتطوير والمشاريع التجريبية
-        'Authorization': 'Bearer sk-or-v1-0000000000000000000000000000000000000000000000000000000000000000',
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3-8b-instruct:free', // نموذج مجاني تماماً وقوي جداً باللغة العربية
-        messages: [
-          { role: 'user', content: promptText }
-        ],
-      }),
+    // إرسال الـ SYSTEM_PROMPT بشكل أصلي وآمن عبر نظام خادم الـ Gemini المتطور
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_PROMPT,
+      generationConfig: {
+        temperature: 0.6, // موازنة مثالية بين الإبداع الفني والالتزام بالحقائق التجارية
+        maxOutputTokens: 800, // حد حماية لمنع الردود الطويلة والمملة للعميل
+      }
     })
 
-    if (!response.ok) {
-      throw new Error('فشل السيرفر المجاني البديل في الرد')
+    // بدء جلسة حوارية نظيفة تعتمد كلياً على التاريخ المرسل من العميل فقط
+    const chat = model.startChat({
+      history: history,
+    })
+
+    const result = await chat.sendMessage(message)
+    const responseText = result.response.text()
+
+    if (!responseText) {
+      throw new Error('Empty response received from Gemini engine')
     }
 
-    const data = await response.json()
-    const reply = data.choices[0].message.content
+    return NextResponse.json({ response: responseText })
 
-    return NextResponse.json({ reply })
-
-  } catch (error: any) {
-    console.error('خطأ في السيرفر البديل:', error)
+  } catch (error) {
+    console.error('[ai/chat] Runtime Gemini Exception:', error)
     return NextResponse.json(
-      { reply: 'مرحباً بك في فلوري الفاخر! المساعد الذكي قيد التجهيز حالياً لمناقشة المشروع، كيف يمكنني مساعدتك اليوم بخصوص الزهور؟' },
-      { status: 200 } // جعلناها 200 لضمان عدم توقف الواجهة أبداً أمام المناقشين
+      { error: 'نعتذر منك، واجه المستشار الذكي عطلاً مؤقتاً في تنسيق الإجابة. يرجى المحاولة مجدداً.' },
+      { status: 500 }
     )
   }
 }

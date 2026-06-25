@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2015", // 👈 حل المشكلة جذرياً بجعل الهدف متصفحات حديثة تدعم ES6+
-    "downlevelIteration": true, // 👈 تفعيل دعم التكرار المتقدم للنصوص والكائنات القديمة بأمان
+    "target": "es2022",
+    "downlevelIteration": true,
     "lib": [
       "dom",
       "dom.iterable",
@@ -10,6 +10,12 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    /* قيود أمنية وجودة إضافية للإنتاج */
+    "forceConsistentCasingInFileNames": true, /* منع مشاكل اختلاف حالة الأحرف في أسماء الملفات عند الرفع للسيرفر */
+    "noUnusedLocals": true, /* إيقاف الـ Build في حال وجود متغيرات محليّة منسية وغير مستخدمة */
+    "noUnusedParameters": true, /* إيقاف الـ Build عند وجود معاملات دالة (Parameters) غير مستخدمة */
+    "noImplicitReturns": true, /* إجبار جميع مسارات الدالة على إرجاع قيمة واضحة لمنع أخطاء الـ undefined */
+    "noFallthroughCasesInSwitch": true, /* حماية الـ Webhooks: تمنع الانتقال التلقائي بين حالات الـ Switch إذا نُسي الـ break */
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -36,7 +42,8 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "types/**/*.ts" /* تضمين مجلد الأنواع المخصصة صراحة لتفادي أخطاء الاستيراد */
   ],
   "exclude": [
     "node_modules"

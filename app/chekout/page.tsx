@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { MapPin, Phone, User, MessageSquare, CreditCard, Banknote, MessageCircle } from 'lucide-react'
+// 1. Removed 'Phone' from the lucide-react import
+import { MapPin, User, MessageSquare, CreditCard, Banknote, MessageCircle } from 'lucide-react'
 // 1. تحديث مسار الـ Store الصحيح والمطابق لمجلدات مشروعك الحالية
 import { useCart } from '@/lib/store/cart-store'
 import { Button } from '@/components/ui/Button'
@@ -196,8 +197,8 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => setForm({ ...form, payment: method.id })}
                     className={`rounded-2xl p-4 text-center border-2 transition-all duration-200 flex flex-col items-center justify-center ${isSelected
-                        ? 'border-flore-primary bg-purple-50/40 shadow-sm scale-[1.02]'
-                        : 'border-flore-border bg-flore-card hover:border-flore-primary/50'
+                      ? 'border-flore-primary bg-purple-50/40 shadow-sm scale-[1.02]'
+                      : 'border-flore-border bg-flore-card hover:border-flore-primary/50'
                       }`}
                   >
                     <Icon className={`h-6 w-6 mb-2 ${isSelected ? 'text-flore-primary' : 'text-flore-text-secondary'}`} />
@@ -246,6 +247,7 @@ export default function CheckoutPage() {
               type="submit"
               disabled={loading}
               size="lg"
+              // 2. Fixed the accidental terminal copy-paste typo here!
               className="w-full bg-white text-flore-primary hover:bg-purple-50 transition-all font-bold text-base py-4 rounded-xl shadow-md"
             >
               {loading ? 'جاري توثيق وإرسال طلبك...' : 'تأكيد وإرسال الطلب الآمن'}

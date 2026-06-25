@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, ChevronLeft, Truck, CheckCircle } from 'lucide-react'
+import { ChevronLeft, Truck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { orderStatuses } from '@/lib/utils'
@@ -13,7 +12,7 @@ import type { Order } from '@/types'
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const supabase = createClient()
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { MapPin, Phone, User, MessageSquare, CreditCard, Banknote, MessageCircle, ArrowLeft } from 'lucide-react'
+import { MapPin, User, MessageSquare, CreditCard, Banknote, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useCart } from '@/lib/store/cart-store'
 import { Button } from '@/components/ui/Button'
 import { formatPrice, generateWhatsAppMessage } from '@/lib/utils'
@@ -27,20 +27,26 @@ export default function CheckoutPage() {
 
     const supabase = createClient()
 
-    // 1. التحقق من حالة الجلسة (مستخدم مسجل أو ضيف)
+    // التحقق من حالة الجلسة وحماية الصفحة من السلة الفارغة بأمان
     useEffect(() => {
         setMounted(true)
+
+        if (items.length === 0) {
+            router.push('/cart')
+            return
+        }
+
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             if (session?.user) {
                 setUserId(session.user.id)
-                // ملء البيانات الأساسية للمستخدم تلقائياً لتسهيل الدفع
+
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('full_name, phone')
                     .eq('id', session.user.id)
                     .single()
-                
+
                 if (profile) {
                     setForm(prev => ({
                         ...prev,
@@ -51,7 +57,7 @@ export default function CheckoutPage() {
             }
         }
         checkSession()
-    }, [])
+    }, [items.length, router, supabase.auth])
 
     if (!mounted) {
         return (
@@ -61,11 +67,7 @@ export default function CheckoutPage() {
         )
     }
 
-    // حماية الصفحة: إذا كانت السلة فارغة يتم التحويل فوراً إلى السلة
-    if (items.length === 0) {
-        router.push('/cart')
-        return null
-    }
+    if (items.length === 0) return null
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -73,57 +75,53 @@ export default function CheckoutPage() {
         setLoading(true)
 
         try {
-            const total = getTotal()
-
-            // 2. إدخال الطلب الآمن والموثق داخل Supabase
-            // التأكد من توحيد حالة الحروف (lowercase) لتفادي أخطاء الـ CHECK constraint بقاعدة البيانات
-            const { data, error } = await supabase
-                .from('orders')
-                .insert({
-                    user_id: userId, // ربط المستخدم إن وجد، أو تركه null للضيوف
+            // 1. إرسال الطلب للسيرفر للتحقق من الأسعار والحسابات بشكل آمن
+            const response = await fetch('/api/orders/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     items: items.map(item => ({
                         product_id: item.product.id,
-                        name: item.product.name,
-                        price: item.product.price,
                         qty: item.quantity,
-                        image: item.product.image,
                         customization: item.customization || null,
                     })),
-                    total,
-                    currency: 'JOD',
-                    payment_method: form.payment.toLowerCase(),
+                    customer_name: form.name,
+                    customer_phone: form.phone,
                     delivery_address: form.address,
                     delivery_region: form.region.toLowerCase(),
-                    customer_phone: form.phone,
-                    customer_name: form.name,
                     gift_message: form.giftMessage || null,
-                    notes: form.notes || null,
-                })
-                .select()
-                .single()
+                    delivery_notes: form.notes || null,
+                    payment_method: form.payment.toLowerCase(),
+                }),
+            })
 
-            if (error) throw error
+            if (!response.ok) {
+                const err = await response.json()
+                throw new Error(err.error || 'Failed to create order')
+            }
 
-            // 3. التعامل الذكي والديناميكي مع بوابات الدفع المختارة
+            // 2. استقبال المعرف الموثق للطلب والمجموع من السيرفر
+            const { orderId, total: serverTotal } = await response.json()
+            const orderTotal = serverTotal || getTotal()
+
+            // 3. التوجيه ومعالجة بوابات الدفع بناءً على رد السيرفر الآمن
             if (form.payment === 'whatsapp') {
-                const message = generateWhatsAppMessage(items, total)
+                const message = generateWhatsAppMessage(items, orderTotal)
                 const whatsappUrl = `https://wa.me/962790000000?text=${encodeURIComponent(message)}`
                 window.open(whatsappUrl, '_blank')
-                
-                // تفريغ السلة والتوجيه المناسب
+
                 clearCart()
                 if (userId) {
-                    router.push(`/profile?order=${data.id}`)
+                    router.push(`/profile?order=${orderId}`)
                 } else {
-                    router.push(`/tracking/${data.id}`)
+                    router.push(`/tracking/${orderId}`)
                 }
             } else if (form.payment === 'cliq') {
-                // الاتصال بـ API الدفع الرقمي الأردني CliQ
                 const cliqRes = await fetch('/api/payment/cliq', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        orderId: data.id,
+                        orderId: orderId,
                         phoneNumber: form.phone,
                     }),
                 })
@@ -134,29 +132,28 @@ export default function CheckoutPage() {
                     throw new Error(cliqData.error || 'Failed to initialize CliQ payment')
                 }
 
-                // تفريغ السلة وتوجيه المستخدم إلى رابط الدفع
                 clearCart()
                 if (cliqData.paymentUrl) {
                     window.location.href = cliqData.paymentUrl
                 } else {
                     alert('تم تسجيل طلبك بنجاح 🌸. سيتم إرسال تفاصيل الدفع المباشر عبر تطبيق CliQ إلى رقم هاتفك فوراً.')
                     if (userId) {
-                        router.push(`/profile?order=${data.id}`)
+                        router.push(`/profile?order=${orderId}`)
                     } else {
-                        router.push(`/tracking/${data.id}`)
+                        router.push(`/tracking/${orderId}`)
                     }
                 }
             } else if (form.payment === 'cash') {
                 alert('تم تسجيل طلبك بنجاح 🌸. سيتم الدفع نقداً عند استلام الباقة الفاخرة من السائق.')
                 clearCart()
                 if (userId) {
-                    router.push(`/profile?order=${data.id}`)
+                    router.push(`/profile?order=${orderId}`)
                 } else {
-                    router.push(`/tracking/${data.id}`)
+                    router.push(`/tracking/${orderId}`)
                 }
             }
         } catch (err: any) {
-            console.error('Checkout Insertion Error:', err)
+            console.error('Checkout Processing Error:', err)
             alert(err.message || 'حدث خطأ أثناء معالجة الطلب، يرجى المحاولة مرة أخرى أو التواصل معنا مباشرة.')
         } finally {
             setLoading(false)
@@ -172,8 +169,8 @@ export default function CheckoutPage() {
     return (
         <div className="min-h-screen bg-flore-bg pb-24 font-noto text-right" dir="rtl">
             <div className="max-w-2xl mx-auto px-4 py-12">
-                <button 
-                    onClick={() => router.push('/cart')} 
+                <button
+                    onClick={() => router.push('/cart')}
                     className="flex items-center gap-2 text-flore-primary mb-6 hover:underline font-medium"
                 >
                     <ArrowLeft className="h-4 w-4 rotate-180" /> العودة للسلة
@@ -200,7 +197,7 @@ export default function CheckoutPage() {
                                     required
                                     type="text"
                                     value={form.name}
-                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                                     className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none transition-colors"
                                     placeholder="محمد أحمد"
                                 />
@@ -211,7 +208,7 @@ export default function CheckoutPage() {
                                     required
                                     type="tel"
                                     value={form.phone}
-                                    onChange={e => setForm({ ...form, phone: e.target.value })}
+                                    onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
                                     className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none transition-colors"
                                     placeholder="0790000000"
                                     dir="ltr"
@@ -220,7 +217,7 @@ export default function CheckoutPage() {
                         </div>
                     </section>
 
-                    {/* عنوان التوصيل الجغرافي */}
+                    {/* وجهة التوصيل اللوجستية */}
                     <section className="bg-flore-card rounded-3xl p-6 shadow-luxury border border-flore-border">
                         <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2 text-flore-primary">
                             <MapPin className="h-5 w-5" />
@@ -231,7 +228,7 @@ export default function CheckoutPage() {
                                 <label className="block text-sm text-flore-text-secondary mb-1">المنطقة / المحافظة</label>
                                 <select
                                     value={form.region}
-                                    onChange={e => setForm({ ...form, region: e.target.value })}
+                                    onChange={e => setForm(prev => ({ ...prev, region: e.target.value }))}
                                     className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none transition-colors cursor-pointer"
                                 >
                                     <option value="amman">عمّان</option>
@@ -245,7 +242,7 @@ export default function CheckoutPage() {
                                 <textarea
                                     required
                                     value={form.address}
-                                    onChange={e => setForm({ ...form, address: e.target.value })}
+                                    onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
                                     className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none resize-none transition-colors"
                                     rows={2}
                                     placeholder="الشارع، رقم البناء، المعالم المميزة بالقرب من الموقع"
@@ -254,7 +251,7 @@ export default function CheckoutPage() {
                         </div>
                     </section>
 
-                    {/* طريقة الدفع والتحويل */}
+                    {/* طريقة الدفع */}
                     <section className="bg-flore-card rounded-3xl p-6 shadow-luxury border border-flore-border">
                         <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2 text-flore-primary">
                             <CreditCard className="h-5 w-5" />
@@ -268,10 +265,10 @@ export default function CheckoutPage() {
                                     <button
                                         key={method.id}
                                         type="button"
-                                        onClick={() => setForm({ ...form, payment: method.id })}
+                                        onClick={() => setForm(prev => ({ ...prev, payment: method.id }))}
                                         className={`rounded-2xl p-4 text-center border-2 transition-all duration-200 flex flex-col items-center justify-center ${isSelected
-                                                ? 'border-flore-primary bg-purple-50/40 shadow-sm scale-[1.02]'
-                                                : 'border-flore-border bg-flore-card hover:border-flore-primary/50'
+                                            ? 'border-flore-primary bg-purple-50/40 shadow-sm scale-[1.02]'
+                                            : 'border-flore-border bg-flore-card hover:border-flore-primary/50'
                                             }`}
                                     >
                                         <Icon className={`h-6 w-6 mb-2 ${isSelected ? 'text-flore-primary' : 'text-flore-text-secondary'}`} />
@@ -283,7 +280,7 @@ export default function CheckoutPage() {
                         </div>
                     </section>
 
-                    {/* كرت التخصيص والرسائل */}
+                    {/* كرت الإهداء */}
                     <section className="bg-flore-card rounded-3xl p-6 shadow-luxury border border-flore-border">
                         <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2 text-flore-primary">
                             <MessageSquare className="h-5 w-5" />
@@ -291,14 +288,29 @@ export default function CheckoutPage() {
                         </h2>
                         <textarea
                             value={form.giftMessage}
-                            onChange={e => setForm({ ...form, giftMessage: e.target.value })}
+                            onChange={e => setForm(prev => ({ ...prev, giftMessage: e.target.value }))}
                             className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none resize-none transition-colors"
                             rows={2}
                             placeholder="اكتب الكلمات التي ترغب في صياغتها على كرت فلوري الفاخر لتقدم مع الباقة..."
                         />
                     </section>
 
-                    {/* ملخص الحسابات ومجموع الفاتورة */}
+                    {/* ملاحظات التنسيق والتوصيل */}
+                    <section className="bg-flore-card rounded-3xl p-6 shadow-luxury border border-flore-border">
+                        <h2 className="font-amiri text-xl font-bold mb-4 flex items-center gap-2 text-flore-primary">
+                            <MessageCircle className="h-5 w-5" />
+                            ملاحظات خاصة بالتوصيل أو التنسيق (اختياري)
+                        </h2>
+                        <textarea
+                            value={form.notes}
+                            onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
+                            className="w-full rounded-xl border-2 border-flore-border bg-flore-bg p-3 focus:border-flore-primary focus:outline-none resize-none transition-colors"
+                            rows={2}
+                            placeholder="مثال: يرجى الاتصال قبل الوصول، أو تفضيل ألوان معينة للتغليف الخارجي..."
+                        />
+                    </section>
+
+                    {/* ملخص الحسابات والـ Submit */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}

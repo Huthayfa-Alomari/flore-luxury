@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export function createClient() {
@@ -9,21 +9,27 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+        getAll() {
+          return cookieStore.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
+        // تعيين نوع صريح مصفوفي (Explicit Array Type) لمنع خطأ Implicit Any
+        setAll(
+          cookiesToSet: Array<{
+            name: string
+            value: string
+            options: Record<string, any>
+          }>
+        ) {
           try {
-            cookieStore.set({ name, value, ...options })
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
           } catch (error) {
-            // Handle middleware context
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // Handle middleware context
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(
+                '[Supabase SSR] setAll cookies skipped. This is expected behavior within read-only Server Components.'
+              )
+            }
           }
         },
       },
