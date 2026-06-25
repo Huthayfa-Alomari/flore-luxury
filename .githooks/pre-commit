@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --verbose
+elif [ -f "./node_modules/.bin/gitleaks.cmd" ]; then
+  ./node_modules/.bin/gitleaks.cmd protect --staged --redact --verbose
+elif [ -x "./node_modules/.bin/gitleaks" ]; then
+  ./node_modules/.bin/gitleaks protect --staged --redact --verbose
+else
+  echo "gitleaks is not installed. Install Gitleaks and retry the commit." >&2
+  exit 1
+fi

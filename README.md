@@ -47,19 +47,27 @@ cd flore-luxury
 npm install
 ```
 
-3. Set up environment variables:
+3. Install Gitleaks and enable the local Git hooks:
+```bash
+winget install --id Gitleaks.Gitleaks
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs Gitleaks against staged changes and blocks commits that include secrets.
+
+4. Set up environment variables:
 ```bash
 cp .env.example .env.local
 ```
 
 Fill in your Supabase credentials and other API keys.
 
-4. Set up Supabase database:
+5. Set up Supabase database:
    - Create a new Supabase project
    - Run the SQL schema from `supabase/schema.sql`
    - Run the seed data
 
-5. Run the development server:
+6. Run the development server:
 ```bash
 npm run dev
 ```
@@ -110,10 +118,20 @@ npm run test:ui
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-| `OPENAI_API_KEY` | OpenAI API key (optional) |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps API key (optional) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push VAPID public key |
 | `VAPID_PRIVATE_KEY` | Web Push VAPID private key |
+
+## 🔐 Secret Scanning
+
+This repository uses a tracked pre-commit hook in `.githooks/pre-commit`.
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Install Gitleaks before enabling the hook. On Windows, use `winget install --id Gitleaks.Gitleaks`. On macOS, use `brew install gitleaks`.
+
+Never commit `.env.local` or real credentials. If Gitleaks blocks a commit, remove the secret from the staged files and rotate the exposed credential before continuing.
 
 ## 🎨 Design System
 
