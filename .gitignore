@@ -33,4 +33,7 @@ Thumbs.db
 # Misc
 *.log
 build-error.txt
-tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo.env.local
+.env.*.local
+*.tsbuildinfo
+build-error.txt
