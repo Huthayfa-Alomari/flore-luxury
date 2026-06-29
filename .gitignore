@@ -37,3 +37,13 @@ tsconfig.tsbuildinfo.env.local
 .env.*.local
 *.tsbuildinfo
 build-error.txt
+node_modules
+# Next.js build and cache
+.next/
+out/
+build/
+node_modules/
+
+# local env files
+.env*.local
+.vercel

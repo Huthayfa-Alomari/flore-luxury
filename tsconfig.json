@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "downlevelIteration": true,
+    "target": "es2015", // 👈 حل المشكلة جذرياً بجعل الهدف متصفحات حديثة تدعم ES6+
+    "downlevelIteration": true, // 👈 تفعيل دعم التكرار المتقدم للنصوص والكائنات القديمة بأمان
     "lib": [
       "dom",
       "dom.iterable",
@@ -42,8 +42,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "types/**/*.ts" /* تضمين مجلد الأنواع المخصصة صراحة لتفادي أخطاء الاستيراد */
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

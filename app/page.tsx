@@ -10,6 +10,8 @@ export const metadata: Metadata = {
 }
 
 async function getFeaturedProducts(): Promise<Product[]> {
+export const dynamic = 'force-dynamic';
+async function getFeaturedProducts() {
   const supabase = createClient()
 
   const { data, error } = await supabase

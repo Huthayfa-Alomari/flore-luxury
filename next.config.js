@@ -11,6 +11,12 @@ const nextConfig = {
   reactStrictMode: true, // تفعيل الوضع الصارم لاكتشاف أخطاء الـ Rendering والتسريبات البرمجية مبكراً
   poweredByHeader: false, // حماية أمنية: إخفاء ترويسة X-Powered-By لمنع المهاجمين من معرفة استخدامك لـ Next.js
 
+  disable: process.env.NODE_ENV === "development", // يتعطل فقط في بيئة التطوير لتسهيل العمل ويشتغل عند الـ Build
+  register: true,
+  skipWaiting: true,
+});
+
+const nextConfig = {
   images: {
     remotePatterns: [
       {
@@ -49,6 +55,9 @@ const nextConfig = {
         ],
       },
     ];
+        hostname: '**', // لدعم سحب صور المنتجات من الـ Supabase Storage بأمان
+      },
+    ],
   },
 };
 
