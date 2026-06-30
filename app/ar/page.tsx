@@ -4,10 +4,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, Suspense } from 'react'
-import { motion } from 'framer-motion'
 import { Eye, Smartphone, RotateCcw, Flower2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { useARSupport } from '@/hooks/useAR'
 import type { Product } from '@/types'
@@ -31,8 +29,8 @@ function ModelViewer({ product }: { product: Product }) {
   return (
     <div className="relative w-full h-full">
       <model-viewer
-        src={product.model_url}
-        poster={product.image}
+        src={product.model_url || ''} // تمرير سلسلة فارغة بدلاً من null لتجنب تعارض الأنواع الصارم
+        poster={product.image || ''}   // تمرير سلسلة فارغة بدلاً من null لتجنب تعارض الأنواع الصارم
         alt={`معاينة ${product.name}`}
         camera-controls
         auto-rotate
@@ -41,7 +39,7 @@ function ModelViewer({ product }: { product: Product }) {
         touch-action="pan-y"
         shadow-intensity="1"
         exposure="0.8"
-        style={{ width: '100%', height: '100%', borderRadius: '1.5rem' }}
+        style={{ width: '100%', height: '100%', borderRadius: '1.5rem' } as React.CSSProperties}
       >
         {/* تم تحويله إلى div وتمرير ستايل تفاعلي لحل مشكلة الـ Event handlers passed to Client Component props */}
         <div
@@ -60,14 +58,30 @@ export default function ARPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
-  const { isSupported, isMobile } = useARSupport()
+  const { isSupported } = useARSupport()
   const supabase = createClient()
 
   useEffect(() => {
     fetchProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchProducts = async () => {
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('ar_enabled', true)
+        .eq('in_stock', true)
+
+      if (data && data.length > 0) {
+        setProducts(data as Product[])
+        setSelectedProduct(data[0] as Product)
+      }
+    } catch (error) {
+      console.error('Error fetching AR products:', error)
+    } finally {
+      setLoading(false)
     const { data } = await supabase
       .from('products')
       .select('*')
@@ -78,7 +92,6 @@ export default function ARPage() {
       setProducts(data as Product[])
       setSelectedProduct(data[0] as Product)
     }
-    setLoading(false)
   }
 
   if (loading) {

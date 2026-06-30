@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, Share2, ShoppingBag, Eye, ArrowLeft, Check, Copy, MessageCircle } from 'lucide-react'
+import { Heart, ShoppingBag, Eye, ArrowLeft, Check, Copy, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 // التعديل 1: استيراد useCart بدلاً من useCartStore
 import { useCart } from '@/lib/store/cart-store'
