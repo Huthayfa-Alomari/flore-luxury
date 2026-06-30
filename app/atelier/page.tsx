@@ -1,29 +1,32 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-const flowerTypes = [
-  { id: 'rose', name: 'وردة حمراء', price: 5, image: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=200&h=200&fit=crop' },
-  { id: 'tulip', name: 'توليب وردي', price: 4, image: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=200&h=200&fit=crop' },
-  { id: 'orchid', name: 'أوركيد أبيض', price: 8, image: 'https://images.unsplash.com/photo-1487070183336-b863922373d4?w=200&h=200&fit=crop' },
-  { id: 'peony', name: 'فاوانيا', price: 7, image: 'https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=200&h=200&fit=crop' },
-  { id: 'lily', name: 'زنبق', price: 6, image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44d63d?w=200&h=200&fit=crop' },
-  { id: 'sunflower', name: 'عباد الشمس', price: 5, image: 'https://images.unsplash.com/photo-1462275646964-a0e3f3988e?w=200&h=200&fit=crop' },
-]
+type Flower = {
+  id: string
+  name: string
+  price: number
+  image: string | null
+  color: string | null
+  in_stock: boolean
+}
 
-const wrapOptions = [
-  { id: 'kraft', name: 'ورق كرافت', price: 3, color: '#8B6F47' },
-  { id: 'silk', name: 'تغليف حريري', price: 5, color: '#E7D8B9' },
-  { id: 'velvet', name: 'مخمل', price: 7, color: '#4A0404' },
-  { id: 'minimal', name: 'مينيمال شفاف', price: 4, color: '#F5E6E8' },
-]
+type Wrap = {
+  id: string
+  name: string
+  price: number
+  color: string | null
+  in_stock: boolean
+}
 
-const vaseOptions = [
-  { id: 'none', name: 'بدون مزهرية', price: 0 },
-  { id: 'ceramic', name: 'سيراميك أبيض', price: 15 },
-  { id: 'glass', name: 'زجاج كريستال', price: 25 },
-  { id: 'marble', name: 'رخام', price: 35 },
-]
+type Vase = {
+  id: string
+  name: string
+  price: number
+  image: string | null
+  in_stock: boolean
+}
 
 export default function AtelierPage() {
   const supabase = createClient()
@@ -34,27 +37,52 @@ export default function AtelierPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // 🔄 تم تحديث الحالات لدعم الكميات والمرونة
-  const [selectedFlowers, setSelectedFlowers] = useState<Record<string, number>>({}) // { [flower_id]: qty }
+  const [selectedFlowers, setSelectedFlowers] = useState<Record<string, number>>({})
   const [selectedWrap, setSelectedWrap] = useState<string | null>(null)
   const [selectedVase, setSelectedVase] = useState<string | null>(null)
 
-  // ✅ تم حذف المتغيرات غير المستخدمة تماماً: message, router, addItem
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [{ data: f, error: ef }, { data: w, error: ew }, { data: v, error: ev }] = await Promise.all([
+          supabase.from('flower_types').select('*').eq('in_stock', true),
+          supabase.from('wrap_options').select('*').eq('in_stock', true),
+          supabase.from('vase_options').select('*').eq('in_stock', true),
+        ])
 
-  // ✅ تم إضافة _ قبل اسم الدالة لتجاهل خطأ "never read" حتى يتم استخدامها في الـ JSX
-  const _calculateTotal = () => {
-    const flowersTotal = selectedFlowers.reduce((sum, id) => {
-      const flower = flowerTypes.find(f => f.id === id)
-      return sum + (flower?.price || 0)
+        if (ef) throw ef
+        if (ew) throw ew
+        if (ev) throw ev
+
+        if (f) setFlowers(f)
+        if (w) setWraps(w)
+        if (v) setVases(v)
+      } catch (err: any) {
+        setError(err.message || 'حدث خطأ في تحميل البيانات')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [supabase])
+
+  // 1️⃣ Memoization (Performance Adjustments)
+  const totalPrice = useMemo(() => {
+    const flowersTotal = Object.entries(selectedFlowers).reduce((sum, [id, qty]) => {
+      const flower = flowers.find(f => f.id === id)
+      return sum + ((flower?.price || 0) * qty)
     }, 0)
 
     const wrap = wraps.find(w => w.id === selectedWrap)
     const vase = vases.find(v => v.id === selectedVase)
 
     return flowersTotal + (wrap?.price || 0) + (vase?.price || 0)
-  }
+  }, [selectedFlowers, flowers, wraps, selectedWrap, vases, selectedVase])
 
-  // 🔄 دالة للتحكم بكميات الزهور (إضافة / تقليل)
+  const totalSelectedFlowersCount = useMemo(() => {
+    return Object.values(selectedFlowers).reduce((a, b) => a + b, 0)
+  }, [selectedFlowers])
+
   const updateFlowerQty = (id: string, amount: number) => {
     setSelectedFlowers(prev => {
       const currentQty = prev[id] || 0
@@ -62,7 +90,7 @@ export default function AtelierPage() {
 
       const updated = { ...prev }
       if (newQty <= 0) {
-        delete updated[id] // حذف الوردة تماماً إذا أصبحت الكمية 0
+        delete updated[id]
       } else {
         updated[id] = newQty
       }
@@ -70,17 +98,12 @@ export default function AtelierPage() {
     })
   }
 
-  // عدد الزهور الإجمالي المختارة للعرض في الواجهة
-  const totalSelectedFlowersCount = Object.values(selectedFlowers).reduce((a, b) => a + b, 0)
-
-  // 🛒 إضافة للسلة (مهيأة للتخزين والارتباط بـ Zustand أو التريجر الخاص بقاعدة البيانات)
   const addToCart = () => {
     if (totalSelectedFlowersCount === 0) {
       alert('اختر زهرة واحدة على الأقل لتصميم باقتك')
       return
     }
 
-    // ⚠️ تم إعادة صياغة المصفوفة لتطابق بنية الـ Trigger: JSONB Array Elements
     const dbItems = [
       ...Object.entries(selectedFlowers).map(([id, qty]) => ({
         product_id: id,
@@ -93,9 +116,8 @@ export default function AtelierPage() {
 
     const cartItem = {
       type: 'custom_bouquet',
-      items: dbItems, // جاهزة للإرسال المباشر لجدول الـ orders دون أخطاء حماية
-      total: calculateTotal(),
-      // يمكنك الاحتفاظ ببيانات العرض للفرونت إند هنا لو احتجت:
+      items: dbItems,
+      total: totalPrice,
       display: {
         flowers: Object.entries(selectedFlowers).map(([id, qty]) => ({ ...flowers.find(f => f.id === id), qty })),
         wrap: wraps.find(w => w.id === selectedWrap),
@@ -104,7 +126,7 @@ export default function AtelierPage() {
     }
 
     console.log('Added to cart:', cartItem)
-    alert(`تمت الإضافة للسلة بنجاح! الإجمالي: ${calculateTotal()} د.أ`)
+    alert(`تمت الإضافة للسلة بنجاح! الإجمالي: ${totalPrice} د.أ`)
   }
 
   if (loading) return (
@@ -115,16 +137,122 @@ export default function AtelierPage() {
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-flore-bg">
-      <div className="text-red-500 text-xl">⚠️ {error}</div>
+      <div className="text-red-500 text-xl">{error}</div>
     </div>
   )
 
   return (
     <div className="min-h-screen bg-flore-bg">
-      {/* ... (بقية واجهة المستخدم الخاصة بك كما هي) ... */}
+      <div className="max-w-4xl mx-auto p-6 pb-32">
+        <h1 className="text-3xl font-bold text-center mb-2 text-flore-gold">أتيليه فلوري</h1>
+        <p className="text-center text-gray-500 mb-8">صمم باقتك الخاصة واقفل تفاصيلها</p>
 
-      {/* ✅ تم إصلاح الخطأ المطبعي في التعليق */}
-      {/* تأكد من أنك قمت بربط الأحداث (onClick) كما ناقشنا سابقاً */}
+        {/* الزهور */}
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            اختر الزهور
+            <span className="text-sm font-normal text-gray-400">({totalSelectedFlowersCount} محددة)</span>
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {flowers.map(flower => {
+              const qty = selectedFlowers[flower.id] || 0
+              return (
+                <div
+                  key={flower.id}
+                  className={`p-4 rounded-xl border-2 transition-all text-right flex flex-col justify-between ${qty > 0 ? 'border-flore-gold bg-flore-gold/5 shadow-md' : 'border-gray-200'
+                    }`}
+                >
+                  <div>
+                    {flower.image && (
+                      <img
+                        src={flower.image}
+                        alt={flower.name}
+                        className="w-full h-32 object-cover rounded-lg mb-2"
+                      />
+                    )}
+                    <p className="font-medium">{flower.name}</p>
+                    <p className="text-flore-gold font-bold">{flower.price} د.أ</p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => updateFlowerQty(flower.id, 1)}
+                      className="bg-white text-black px-3 py-1 rounded shadow hover:bg-gray-50 font-bold"
+                    >
+                      +
+                    </button>
+                    <span className="font-semibold px-2">{qty}</span>
+                    <button
+                      onClick={() => updateFlowerQty(flower.id, -1)}
+                      disabled={qty === 0}
+                      className="bg-white text-black px-3 py-1 rounded shadow hover:bg-gray-50 font-bold disabled:opacity-30"
+                    >
+                      -
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* التغليف */}
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">اختر التغليف</h2>
+          <div className="flex gap-3 flex-wrap">
+            {wraps.map(wrap => (
+              <button
+                key={wrap.id}
+                onClick={() => setSelectedWrap(selectedWrap === wrap.id ? null : wrap.id)}
+                className={`px-6 py-3 rounded-lg border-2 transition-all hover:shadow-md ${selectedWrap === wrap.id
+                    ? 'border-flore-gold bg-flore-gold/10 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <span className="font-medium">{wrap.name}</span>
+                <span className="text-flore-gold mr-2">+{wrap.price} د.أ</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* المزهرية */}
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">اختر المزهرية</h2>
+          <div className="flex gap-3 flex-wrap">
+            {vases.map(vase => (
+              <button
+                key={vase.id}
+                onClick={() => setSelectedVase(selectedVase === vase.id ? null : vase.id)}
+                className={`px-6 py-3 rounded-lg border-2 transition-all hover:shadow-md ${selectedVase === vase.id
+                    ? 'border-flore-gold bg-flore-gold/10 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <span className="font-medium">{vase.name}</span>
+                <span className="text-flore-gold mr-2">+{vase.price} د.أ</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* الإجمالي - sticky bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+        <div className="max-w-4xl mx-auto p-4 flex justify-between items-center">
+          <div>
+            <p className="text-gray-500 text-sm">الإجمالي</p>
+            <p className="text-3xl font-bold text-flore-gold">{totalPrice} د.أ</p>
+          </div>
+          <button
+            onClick={addToCart}
+            disabled={totalSelectedFlowersCount === 0}
+            className="bg-flore-gold text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            أضف إلى السلة
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
