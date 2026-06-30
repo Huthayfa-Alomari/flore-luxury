@@ -11,6 +11,12 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  disable: process.env.NODE_ENV === "development", // يتعطل فقط في بيئة التطوير لتسهيل العمل ويشتغل عند الـ Build
+  register: true,
+  skipWaiting: true,
+});
+
+const nextConfig = {
   images: {
     remotePatterns: [
       {
@@ -48,6 +54,9 @@ const nextConfig = {
         ],
       },
     ];
+        hostname: '**', // لدعم سحب صور المنتجات من الـ Supabase Storage بأمان
+      },
+    ],
   },
 };
 

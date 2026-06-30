@@ -1,0 +1,57 @@
+
+> flore-luxury@1.0.0 build
+> next build
+
+  Γû▓ Next.js 14.2.15
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+ Γ¿» ESLint must be installed in order to run during builds: npm install --save-dev eslint
+   Collecting page data ...
+   Generating static pages (0/25) ...
+   Generating static pages (6/25) 
+   Generating static pages (12/25) 
+   Generating static pages (18/25) 
+ Γ£ô Generating static pages (25/25)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+Γöî ╞Æ /                                    5.87 kB         150 kB
+Γö£ Γùï /_not-found                          873 B          88.2 kB
+Γö£ ╞Æ /admin                               7.3 kB          202 kB
+Γö£ ╞Æ /admin/orders                        3.81 kB         199 kB
+Γö£ ╞Æ /admin/products                      3.83 kB         204 kB
+Γö£ Γùï /ai-assistant                        5.42 kB         136 kB
+Γö£ ╞Æ /api/ai/chat                         0 B                0 B
+Γö£ ╞Æ /api/delivery/update                 0 B                0 B
+Γö£ ╞Æ /api/payment/cliq                    0 B                0 B
+Γö£ ╞Æ /api/payment/cliq/callback           0 B                0 B
+Γö£ ╞Æ /api/push/send                       0 B                0 B
+Γö£ ╞Æ /api/push/subscribe                  0 B                0 B
+Γö£ Γùï /api/push/vapid-public-key           0 B                0 B
+Γö£ Γùï /ar                                  4.62 kB         164 kB
+Γö£ Γùï /atelier                             5.6 kB          134 kB
+Γö£ Γùï /cart                                6.4 kB          215 kB
+Γö£ Γùï /catalog                             4.79 kB         214 kB
+Γö£ Γùï /chekout                             4.08 kB         201 kB
+Γö£ Γùï /login                               4.27 kB         206 kB
+Γö£ Γùï /offline                             138 B          87.4 kB
+Γö£ ╞Æ /product/[id]                        6.11 kB         216 kB
+Γö£ Γùï /profile                             6.23 kB         165 kB
+Γö£ Γùï /robots.txt                          0 B                0 B
+Γö£ ╞Æ /sitemap.xml                         0 B                0 B
+Γöö ╞Æ /tracking/[orderId]                  5.69 kB         208 kB
++ First Load JS shared by all            87.3 kB
+  Γö£ chunks/117-0f63cc7b0664c0c4.js       31.6 kB
+  Γö£ chunks/fd9d1056-79dfa0e5ac683400.js  53.6 kB
+  Γöö other shared chunks (total)          2.05 kB
+
+
+╞Æ Middleware                             82.2 kB
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

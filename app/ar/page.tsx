@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { useARSupport } from '@/hooks/useAR'
 import type { Product } from '@/types'
 
+// model-viewer types are defined globally in types/model-viewer.d.ts
+
 function ModelViewer({ product }: { product: Product }) {
   const [isMounted, setIsMounted] = useState(false)
 
@@ -39,6 +41,7 @@ function ModelViewer({ product }: { product: Product }) {
         exposure="0.8"
         style={{ width: '100%', height: '100%', borderRadius: '1.5rem' } as React.CSSProperties}
       >
+        {/* تم تحويله إلى div وتمرير ستايل تفاعلي لحل مشكلة الـ Event handlers passed to Client Component props */}
         <div
           slot="ar-button"
           className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-flore-primary text-white px-8 py-4 rounded-xl font-noto font-medium shadow-lg hover:bg-opacity-90 transition-all flex items-center gap-2 cursor-pointer z-20"
@@ -79,6 +82,15 @@ export default function ARPage() {
       console.error('Error fetching AR products:', error)
     } finally {
       setLoading(false)
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('ar_enabled', true)
+      .eq('in_stock', true)
+
+    if (data && data.length > 0) {
+      setProducts(data as Product[])
+      setSelectedProduct(data[0] as Product)
     }
   }
 
