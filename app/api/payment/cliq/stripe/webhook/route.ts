@@ -8,7 +8,7 @@ const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 // الإعداد المحدث المتوافق مع الـ Types لديك:
 const stripe = stripeSecretKey
-    ? new Stripe(stripeSecretKey, { apiVersion: '2026-05-27.dahlia' })
+    ? new Stripe(stripeSecretKey, { apiVersion: '2025-02-24.acacia' })
     : null
 
 export async function POST(request: NextRequest) {
